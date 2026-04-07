@@ -1,6 +1,8 @@
+import { initDashboard } from './dashboard';
 import { initInvoiceList } from './invoice-list';
 import { initInvoiceEditor } from './invoice-editor';
 import { initClientManager } from './client-manager';
+import { initReports } from './reports';
 import { initSettings } from './settings';
 import { showToast } from './ui-utils';
 
@@ -46,7 +48,7 @@ async function boot(): Promise<void> {
   }
 
   // Router
-  window.addEventListener('hashchange', () => navigate(window.location.hash || '#/invoices'));
+  window.addEventListener('hashchange', () => navigate(window.location.hash || '#/dashboard'));
 
   // Global keyboard shortcuts
   document.addEventListener('keydown', (e) => {
@@ -68,12 +70,12 @@ async function boot(): Promise<void> {
   });
 
   // Navigate to initial route
-  navigate(window.location.hash || '#/invoices');
+  navigate(window.location.hash || '#/dashboard');
 }
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 function navigate(route: string): void {
-  if (!route || route === '') route = '#/invoices';
+  if (!route || route === '') route = '#/dashboard';
   window.location.hash = route.replace(/^#/, '#');
   currentRoute = route;
 
@@ -81,26 +83,33 @@ function navigate(route: string): void {
   view.innerHTML = '';
   updateNavHighlight(route);
 
-  if (route === '#/invoices' || route === '#/' || route === '') {
+  if (route === '#/dashboard') {
+    initDashboard(view, navigate);
+  } else if (route === '#/invoices' || route === '#/' || route === '') {
     initInvoiceList(view, navigate);
   } else if (route === '#/invoice/new') {
     initInvoiceEditor(view, null, navigate);
   } else if (route.startsWith('#/invoice/edit/')) {
     const id = route.split('/').pop()!;
     initInvoiceEditor(view, id, navigate);
+  } else if (route === '#/reports') {
+    initReports(view);
   } else if (route === '#/clients') {
-    initClientManager(view);
+    initClientManager(view, navigate);
   } else if (route === '#/settings') {
     initSettings(view);
   } else {
-    initInvoiceList(view, navigate);
+    initDashboard(view, navigate);
   }
 }
 
 function updateNavHighlight(route: string): void {
   document.querySelectorAll<HTMLButtonElement>('.nav-item[data-route]').forEach(item => {
     const r = item.dataset.route!;
-    const active = route === r || (r === '#/invoices' && route.startsWith('#/invoice'));
+    const active =
+      route === r ||
+      (r === '#/dashboard' && (route === '' || route === '#/')) ||
+      (r === '#/invoices' && route.startsWith('#/invoice'));
     item.classList.toggle('active', active);
   });
 }

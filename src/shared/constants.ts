@@ -35,6 +35,9 @@ export const IPC_CHANNELS = {
   BACKUP_EXPORT: 'backup:export',
   BACKUP_IMPORT: 'backup:import',
 
+  // CSV
+  CSV_SAVE: 'csv:save',
+
   // Shell
   SHELL_OPEN_EXTERNAL: 'shell:open-external',
   SHELL_SHOW_IN_FOLDER: 'shell:show-in-folder',

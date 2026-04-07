@@ -1,11 +1,13 @@
-import { Client } from '../../shared/types';
+import { Client, Invoice } from '../../shared/types';
 import { showToast, openModal, closeModal, confirm, renderSkeleton, escapeHtml } from './ui-utils';
 import { validateRequired } from './validators';
-import { debounce } from '../../shared/utils';
+import { debounce, aggregateRevenue, aggregateOutstanding, formatCurrency, formatDate } from '../../shared/utils';
 
 let allClients: Client[] = [];
+let _navigate: (route: string) => void = () => {};
 
-export function initClientManager(container: HTMLElement): void {
+export function initClientManager(container: HTMLElement, navigate: (route: string) => void): void {
+  _navigate = navigate;
   container.innerHTML = `
   <div class="view-container">
     <div class="page-header">
@@ -75,7 +77,7 @@ function renderClients(query: string): void {
   }
 
   tbody.innerHTML = filtered.map(c => `
-    <tr>
+    <tr data-client-id="${c.id}" style="cursor:pointer">
       <td style="font-weight:500">${escapeHtml(c.name)}</td>
       <td>${escapeHtml(c.company ?? '—')}</td>
       <td>${escapeHtml(c.email ?? '—')}</td>
@@ -93,19 +95,28 @@ function renderClients(query: string): void {
     </tr>`).join('');
 
   tbody.querySelectorAll<HTMLButtonElement>('[data-action="edit"]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const client = allClients.find(c => c.id === btn.dataset.id);
       if (client) openClientModal(client);
     });
   });
 
   tbody.querySelectorAll<HTMLButtonElement>('[data-action="del"]').forEach(btn => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       const ok = await confirm('Delete this client?', 'Delete Client');
       if (!ok) return;
       const r = await window.finchAPI.client.delete(btn.dataset.id!);
       if (r.success) { showToast('Client deleted', 'success'); loadClients(); }
       else showToast(r.error ?? 'Failed', 'error');
+    });
+  });
+
+  tbody.querySelectorAll<HTMLTableRowElement>('tr[data-client-id]').forEach(row => {
+    row.addEventListener('click', () => {
+      const client = allClients.find(c => c.id === row.dataset.clientId);
+      if (client) showClientHistory(client);
     });
   });
 }
@@ -211,5 +222,117 @@ function openClientModal(client: Client | null): void {
     } else {
       showToast(r.error ?? 'Failed', 'error');
     }
+  });
+}
+
+// ─── Client History Panel ─────────────────────────────────────────────────────
+
+export function filterAndSortInvoicesForClient(invoices: Invoice[], clientId: string): Invoice[] {
+  return invoices
+    .filter(inv => inv.clientId === clientId)
+    .sort((a, b) => (a.issueDate > b.issueDate ? -1 : a.issueDate < b.issueDate ? 1 : 0));
+}
+
+function statusBadge(status: string): string {
+  const map: Record<string, string> = {
+    paid: 'success',
+    unpaid: 'warning',
+    overdue: 'danger',
+    draft: 'secondary',
+    cancelled: 'secondary',
+  };
+  const cls = map[status] ?? 'secondary';
+  return `<span class="badge badge-${cls}">${escapeHtml(status)}</span>`;
+}
+
+async function showClientHistory(client: Client): Promise<void> {
+  const container = document.querySelector<HTMLElement>('.view-container');
+  if (!container) return;
+
+  // Show loading state
+  container.innerHTML = `<div style="padding:28px"><p>Loading invoices…</p></div>`;
+
+  const r = await window.finchAPI.invoice.getAll();
+  if (!r.success) {
+    showToast(r.error ?? 'Failed to load invoices', 'error');
+    // Restore client list on error
+    initClientManager(container.parentElement as HTMLElement, _navigate);
+    return;
+  }
+
+  const allInvoices: Invoice[] = r.data ?? [];
+  const clientInvoices = filterAndSortInvoicesForClient(allInvoices, client.id);
+
+  // Use userId from the first invoice that matches, or fall back to client.userId
+  const userId = client.userId;
+  const revenue = aggregateRevenue(clientInvoices, userId);
+  const outstanding = aggregateOutstanding(clientInvoices, userId);
+
+  const invoiceRowsHtml = clientInvoices.length === 0
+    ? `<tr><td colspan="5">
+        <div class="empty-state">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <p>No invoices found for this client.</p>
+        </div>
+      </td></tr>`
+    : clientInvoices.map(inv => `
+        <tr data-invoice-id="${inv.id}" style="cursor:pointer">
+          <td style="font-weight:500">${escapeHtml(inv.number)}</td>
+          <td>${escapeHtml(formatDate(inv.issueDate))}</td>
+          <td>${escapeHtml(formatDate(inv.dueDate))}</td>
+          <td>${escapeHtml(formatCurrency(inv.grandTotal, inv.currencySymbol))}</td>
+          <td>${statusBadge(inv.status)}</td>
+        </tr>`).join('');
+
+  container.innerHTML = `
+    <div class="page-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-ghost btn-sm" id="history-back-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          Back
+        </button>
+        <h1>${escapeHtml(client.name)}${client.company ? ` <span style="font-weight:400;font-size:0.85em;color:var(--text-muted)">· ${escapeHtml(client.company)}</span>` : ''}</h1>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-primary" id="history-new-invoice-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="btn-label">New Invoice</span>
+        </button>
+      </div>
+    </div>
+    <div style="padding:0 28px 28px">
+      <div class="section">
+        <table class="data-table">
+          <thead><tr>
+            <th>Invoice #</th><th>Issue Date</th><th>Due Date</th><th>Total</th><th>Status</th>
+          </tr></thead>
+          <tbody id="history-tbody">${invoiceRowsHtml}</tbody>
+        </table>
+      </div>
+      <div class="section" style="margin-top:16px;display:flex;gap:24px">
+        <div class="metric-card" style="flex:1">
+          <div class="metric-label">Total Revenue (Paid)</div>
+          <div class="metric-value" style="color:var(--success)">${escapeHtml(formatCurrency(revenue))}</div>
+        </div>
+        <div class="metric-card" style="flex:1">
+          <div class="metric-label">Total Outstanding</div>
+          <div class="metric-value" style="color:var(--warning)">${escapeHtml(formatCurrency(outstanding))}</div>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('history-back-btn')?.addEventListener('click', () => {
+    const parent = container.parentElement as HTMLElement;
+    initClientManager(parent, _navigate);
+  });
+
+  document.getElementById('history-new-invoice-btn')?.addEventListener('click', () => {
+    _navigate(`#/invoice/new?clientId=${client.id}`);
+  });
+
+  document.querySelectorAll<HTMLTableRowElement>('#history-tbody tr[data-invoice-id]').forEach(row => {
+    row.addEventListener('click', () => {
+      _navigate(`#/invoice/edit/${row.dataset.invoiceId}`);
+    });
   });
 }

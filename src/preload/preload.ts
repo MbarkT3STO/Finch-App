@@ -38,6 +38,10 @@ contextBridge.exposeInMainWorld('finchAPI', {
     export: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_EXPORT),
     import: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_IMPORT),
   },
+  csv: {
+    save: (data: { csv: string; defaultName: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.CSV_SAVE, data),
+  },
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, url),
     showItemInFolder: (p: string) => ipcRenderer.invoke(IPC_CHANNELS.SHELL_SHOW_IN_FOLDER, p),

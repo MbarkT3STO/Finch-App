@@ -151,6 +151,9 @@ export interface FinchAPI {
     export(): Promise<ApiResponse<string>>;
     import(): Promise<ApiResponse>;
   };
+  csv: {
+    save(data: { csv: string; defaultName: string }): Promise<ApiResponse<string>>;
+  };
   shell: {
     openExternal(url: string): Promise<void>;
     showItemInFolder(path: string): Promise<void>;

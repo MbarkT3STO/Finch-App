@@ -211,5 +211,26 @@ export function registerIpcHandlers(): void {
     return { success: false, error: 'Import from backup: extract the ZIP to your user data folder manually.' };
   });
 
+  // ─── CSV ───────────────────────────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.CSV_SAVE, async (_e, d: { csv: string; defaultName: string }) => {
+    let filePath: string | undefined;
+    try {
+      const result = await dialog.showSaveDialog({
+        title: 'Save CSV',
+        defaultPath: d.defaultName,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      });
+      if (result.canceled || !result.filePath) return { success: false, error: 'Cancelled' };
+      filePath = result.filePath;
+      await fs.promises.writeFile(filePath, d.csv, 'utf-8');
+      return { success: true, data: filePath };
+    } catch (err) {
+      if (filePath) {
+        try { await fs.promises.unlink(filePath); } catch { /* ignore */ }
+      }
+      return { success: false, error: String(err) };
+    }
+  });
+
   log.info('IPC handlers registered');
 }

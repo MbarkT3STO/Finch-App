@@ -108,3 +108,84 @@ export function calculateTotals(
     grandTotal: r(grandTotal),
   };
 }
+
+// ─── Aggregation Utilities ────────────────────────────────────────────────────
+import type { Invoice } from './types';
+
+export function aggregateRevenue(invoices: Invoice[], userId: string): number {
+  return invoices
+    .filter(inv => inv.status === 'paid' && inv.userId === userId)
+    .reduce((sum, inv) => sum + inv.grandTotal, 0);
+}
+
+export function aggregateOutstanding(invoices: Invoice[], userId: string): number {
+  return invoices
+    .filter(inv => (inv.status === 'unpaid' || inv.status === 'overdue') && inv.userId === userId)
+    .reduce((sum, inv) => sum + inv.grandTotal, 0);
+}
+
+export function groupByMonth(invoices: Invoice[], year: number): number[] {
+  const totals = new Array<number>(12).fill(0);
+  for (const inv of invoices) {
+    if (inv.status !== 'paid') continue;
+    const invYear = parseInt(inv.issueDate.split('-')[0], 10);
+    if (invYear !== year) continue;
+    const month = parseInt(inv.issueDate.split('-')[1], 10) - 1; // 0-indexed
+    totals[month] += inv.grandTotal;
+  }
+  return totals;
+}
+
+export function groupByYear(invoices: Invoice[]): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const inv of invoices) {
+    if (inv.status !== 'paid') continue;
+    const year = inv.issueDate.split('-')[0];
+    result[year] = (result[year] ?? 0) + inv.grandTotal;
+  }
+  return result;
+}
+
+export function taxSummaryByMonth(
+  invoices: Invoice[],
+  year: number,
+): Array<{ invoiced: number; taxTotal: number; net: number }> {
+  const rows = Array.from({ length: 12 }, () => ({ invoiced: 0, taxTotal: 0, net: 0 }));
+  for (const inv of invoices) {
+    if (inv.status !== 'paid') continue;
+    const invYear = parseInt(inv.issueDate.split('-')[0], 10);
+    if (invYear !== year) continue;
+    const month = parseInt(inv.issueDate.split('-')[1], 10) - 1;
+    rows[month].invoiced += inv.grandTotal;
+    rows[month].taxTotal += inv.taxTotal;
+  }
+  for (const row of rows) {
+    row.net = row.invoiced - row.taxTotal;
+  }
+  return rows;
+}
+
+// ─── CSV Export Utility ───────────────────────────────────────────────────────
+
+/**
+ * Serialises headers and rows to an RFC 4180-compliant CSV string.
+ * - Header row is always the first line
+ * - Fields containing commas, double-quotes, or newlines are double-quoted
+ * - Internal double-quotes are doubled
+ * - Lines are separated by CRLF (\r\n)
+ */
+export function toCSV(headers: string[], rows: string[][]): string {
+  function escapeField(field: string): string {
+    if (field.includes(',') || field.includes('"') || field.includes('\n') || field.includes('\r')) {
+      return '"' + field.replace(/"/g, '""') + '"';
+    }
+    return field;
+  }
+
+  const lines: string[] = [];
+  lines.push(headers.map(escapeField).join(','));
+  for (const row of rows) {
+    lines.push(row.map(escapeField).join(','));
+  }
+  return lines.join('\r\n');
+}
