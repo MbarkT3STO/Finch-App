@@ -132,6 +132,8 @@ async function setupEditorEvents(invoiceId: string | null): Promise<void> {
       billFrom: settings?.businessDetails ? { ...settings.businessDetails } : { name: '', address: '', city: '', state: '', zip: '', country: '', email: '', phone: '' },
       billTo: {},
       subtotal: 0, taxTotal: 0, discountAmount: 0, grandTotal: 0,
+      template: settings?.defaultInvoiceTemplate ?? 'classic',
+      footerText: settings?.defaultFooterText ?? '',
     };
   }
 
@@ -231,6 +233,14 @@ function renderForm(): void {
           <select class="form-select" id="f-taxmode">
             <option value="exclusive" ${invoice.taxMode !== 'inclusive' ? 'selected' : ''}>Exclusive (tax added on top)</option>
             <option value="inclusive" ${invoice.taxMode === 'inclusive' ? 'selected' : ''}>Inclusive (tax in price)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Template</label>
+          <select class="form-select" id="f-template">
+            <option value="classic"  ${(invoice.template ?? 'classic') === 'classic'  ? 'selected' : ''}>Classic</option>
+            <option value="modern"   ${invoice.template === 'modern'   ? 'selected' : ''}>Modern</option>
+            <option value="minimal"  ${invoice.template === 'minimal'  ? 'selected' : ''}>Minimal</option>
           </select>
         </div>
       </div>
@@ -355,6 +365,10 @@ function renderForm(): void {
         <label class="form-label">Terms & Conditions</label>
         <textarea class="form-textarea" id="f-terms" placeholder="Terms and conditions…">${esc(invoice.terms ?? '')}</textarea>
       </div>
+      <div class="form-group">
+        <label class="form-label">Footer</label>
+        <textarea class="form-textarea" id="f-footer" placeholder="Footer text (e.g. payment instructions, bank details)…">${esc(invoice.footerText ?? '')}</textarea>
+      </div>
     </div>
   </div>`;
 
@@ -438,6 +452,7 @@ function bindFormEvents(): void {
   watch('f-due',      v => { invoice.dueDate = v; });
   watch('f-notes',    v => { invoice.notes = v; });
   watch('f-terms',    v => { invoice.terms = v; });
+  watch('f-footer',   v => { invoice.footerText = v; });
   watch('f-disc-val', v => { if (!invoice.discount) invoice.discount = { type: 'percent', value: 0 }; invoice.discount.value = parseFloat(v) || 0; });
   watch('f-shipping', v => { invoice.shipping = parseFloat(v) || 0; });
 
@@ -487,6 +502,13 @@ function bindFormEvents(): void {
   const taxMode = document.getElementById('f-taxmode') as HTMLSelectElement;
   taxMode?.addEventListener('change', () => {
     invoice.taxMode = taxMode.value as 'inclusive' | 'exclusive';
+    pushHistory(); recalculate();
+  });
+
+  // Template
+  const templateSel = document.getElementById('f-template') as HTMLSelectElement;
+  templateSel?.addEventListener('change', () => {
+    invoice.template = templateSel.value as 'classic' | 'modern' | 'minimal';
     pushHistory(); recalculate();
   });
 

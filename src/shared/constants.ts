@@ -76,6 +76,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   invoicePrefix: 'INV',
   nextInvoiceNumber: 1,
   businessDetails: { ...DEFAULT_BUSINESS },
+  defaultInvoiceTemplate: 'classic',
+  defaultFooterText: '',
 };
 
 export const PASSWORD_MIN_LENGTH = 8;

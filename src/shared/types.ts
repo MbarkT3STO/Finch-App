@@ -92,6 +92,8 @@ export interface Invoice {
   grandTotal: number;
   createdAt: string;
   updatedAt: string;
+  template?: 'classic' | 'modern' | 'minimal';
+  footerText?: string;
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -104,6 +106,8 @@ export interface AppSettings {
   invoicePrefix: string;
   nextInvoiceNumber: number;
   businessDetails: BusinessDetails;
+  defaultInvoiceTemplate?: 'classic' | 'modern' | 'minimal';
+  defaultFooterText?: string;
 }
 
 // ─── API Responses ────────────────────────────────────────────────────────────

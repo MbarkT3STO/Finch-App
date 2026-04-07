@@ -125,6 +125,20 @@ function renderSettings(s: AppSettings): void {
       </div>
       <div class="form-row">
         <div class="form-group">
+          <label class="form-label">Default Template</label>
+          <select class="form-select" id="s-default-template" style="max-width:160px">
+            <option value="classic" ${(s.defaultInvoiceTemplate ?? 'classic') === 'classic' ? 'selected' : ''}>Classic</option>
+            <option value="modern" ${s.defaultInvoiceTemplate === 'modern' ? 'selected' : ''}>Modern</option>
+            <option value="minimal" ${s.defaultInvoiceTemplate === 'minimal' ? 'selected' : ''}>Minimal</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Default Invoice Footer</label>
+        <textarea class="form-input" id="s-default-footer" rows="3" placeholder="e.g. payment instructions, bank details…" style="resize:vertical">${esc(s.defaultFooterText ?? '')}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
           <label class="form-label">Currency</label>
           <select class="form-select" id="s-currency" style="max-width:140px">
             ${[['USD','$'],['EUR','€'],['GBP','£'],['CAD','CA$'],['AUD','A$'],['JPY','¥'],['CHF','CHF'],['INR','₹']].map(([c,sym]) =>
@@ -239,6 +253,10 @@ async function saveSettings(): Promise<void> {
   const themeOpt = document.querySelector<HTMLElement>('.theme-opt.active');
   const theme = (themeOpt?.dataset.theme ?? currentSettings?.theme ?? 'system') as 'light' | 'dark' | 'system';
 
+  const defaultTemplateEl = document.getElementById('s-default-template') as HTMLSelectElement;
+  const defaultInvoiceTemplate = (defaultTemplateEl?.value ?? 'classic') as 'classic' | 'modern' | 'minimal';
+  const defaultFooterText = (document.getElementById('s-default-footer') as HTMLTextAreaElement)?.value ?? '';
+
   const partial: Partial<AppSettings> = {
     invoicePrefix: (document.getElementById('s-prefix') as HTMLInputElement)?.value.trim() || 'INV',
     nextInvoiceNumber: parseInt((document.getElementById('s-next-num') as HTMLInputElement)?.value || '1', 10),
@@ -246,6 +264,8 @@ async function saveSettings(): Promise<void> {
     currency,
     currencySymbol,
     theme,
+    defaultInvoiceTemplate,
+    defaultFooterText,
     businessDetails: {
       name:    (document.getElementById('s-biz-name')    as HTMLInputElement)?.value.trim() ?? '',
       email:   (document.getElementById('s-biz-email')   as HTMLInputElement)?.value.trim() ?? '',
