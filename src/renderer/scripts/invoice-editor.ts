@@ -1,7 +1,9 @@
-import { Invoice, Client, LineItem, AppSettings } from '../../shared/types';
+import type { Invoice, Client, LineItem, AppSettings } from '../../shared/types';
 import { generateId, calculateTotals, formatCurrency, todayISO, addDaysISO, debounce, deepClone } from '../../shared/utils';
-import { showToast, setLoading, escapeHtml } from './ui-utils';
+import { showToast, setLoading, escapeHtml, createCustomSelect } from './ui-utils';
 import { generatePreviewHtml } from './pdf-generator';
+import { resolveInvoiceTheme } from '../../shared/theme-resolver';
+import { t } from './i18n';
 
 let invoice: Partial<Invoice> = {};
 let settings: AppSettings | null = null;
@@ -27,32 +29,33 @@ export function initInvoiceEditor(container: HTMLElement, invoiceId: string | nu
 }
 
 function buildEditorShell(invoiceId: string | null): string {
+  const titleKey = invoiceId ? 'invoices.edit_title' : 'invoices.new_title';
   return `
   <div class="view-container" id="editor-view">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);flex-shrink:0">
       <div style="display:flex;align-items:center;gap:12px">
         <button class="btn btn-ghost btn-sm" id="editor-back-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-          Invoices
+          <span data-i18n="nav.invoices">${t('nav.invoices')}</span>
         </button>
         <span style="color:var(--border-strong)">|</span>
-        <span id="editor-title" style="font-weight:600;font-size:0.9375rem">${invoiceId ? 'Edit Invoice' : 'New Invoice'}</span>
+        <span id="editor-title" style="font-weight:600;font-size:0.9375rem" data-i18n="${titleKey}">${t(titleKey)}</span>
         <div class="autosave-indicator" id="autosave-ind">
           <div class="autosave-dot"></div>
-          <span>Draft</span>
+          <span data-i18n="status.draft">${t('status.draft')}</span>
         </div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-secondary btn-sm" id="undo-btn" title="Undo (Ctrl+Z)" disabled>
+        <button class="btn btn-secondary btn-sm" id="undo-btn" title="${t('invoices.undo')}" data-i18n-title="invoices.undo" disabled>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
         </button>
-        <button class="btn btn-secondary btn-sm" id="redo-btn" title="Redo (Ctrl+Shift+Z)" disabled>
+        <button class="btn btn-secondary btn-sm" id="redo-btn" title="${t('invoices.redo')}" data-i18n-title="invoices.redo" disabled>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/></svg>
         </button>
-        <button class="btn btn-secondary btn-sm" id="save-draft-btn"><span class="btn-label">Save Draft</span></button>
+        <button class="btn btn-secondary btn-sm" id="save-draft-btn"><span class="btn-label" data-i18n="invoices.save_draft">${t('invoices.save_draft')}</span></button>
         <button class="btn btn-highlight" id="export-pdf-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          <span class="btn-label">Export PDF</span>
+          <span class="btn-label" data-i18n="invoices.export_pdf">${t('invoices.export_pdf')}</span>
         </button>
       </div>
     </div>
@@ -67,21 +70,15 @@ function buildEditorShell(invoiceId: string | null): string {
 
       <!-- Right: Preview -->
       <div class="editor-preview-panel">
-        <div class="preview-label">Live Preview</div>
+        <div class="preview-label" data-i18n="invoices.live_preview">${t('invoices.live_preview')}</div>
         <div class="preview-frame">
-          <iframe id="preview-iframe" title="Invoice Preview"></iframe>
+          <iframe id="preview-iframe" title="${t('invoices.live_preview')}" data-i18n-title="invoices.live_preview"></iframe>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <select class="form-select" id="status-select" style="height:32px;font-size:0.8125rem;max-width:140px">
-            <option value="draft">Draft</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="paid">Paid</option>
-            <option value="overdue">Overdue</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+        <div id="status-select-container" style="width:140px"></div>
           <button class="btn btn-secondary btn-sm" id="print-btn">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            Print
+            <span data-i18n="invoices.print">${t('invoices.print')}</span>
           </button>
         </div>
       </div>
@@ -106,9 +103,9 @@ async function setupEditorEvents(invoiceId: string | null): Promise<void> {
     const r = await window.finchAPI.invoice.get(invoiceId);
     if (r.success && r.data) {
       invoice = deepClone(r.data);
-      document.getElementById('editor-title')!.textContent = `Invoice ${invoice.number ?? ''}`;
+      document.getElementById('editor-title')!.textContent = `${t('invoices.details')} ${invoice.number ?? ''}`;
     } else {
-      showToast(r.error ?? 'Invoice not found', 'error');
+      showToast(r.error ?? t('common.error'), 'error');
       navigate('#/invoices');
       return;
     }
@@ -142,11 +139,20 @@ async function setupEditorEvents(invoiceId: string | null): Promise<void> {
   updatePreview();
 
   // Set status select
-  const statusSel = document.getElementById('status-select') as HTMLSelectElement;
-  if (statusSel) statusSel.value = invoice.status ?? 'draft';
-  statusSel?.addEventListener('change', () => {
-    invoice.status = statusSel.value as Invoice['status'];
-    updatePreview();
+  createCustomSelect(document.getElementById('status-select-container')!, {
+    id: 'status-select',
+    options: [
+      { label: t('status.draft'), value: 'draft' },
+      { label: t('status.unpaid'), value: 'unpaid' },
+      { label: t('status.paid'), value: 'paid' },
+      { label: t('status.overdue'), value: 'overdue' },
+      { label: t('status.cancelled'), value: 'cancelled' }
+    ],
+    initialValue: invoice.status || 'draft',
+    onChange: (val) => {
+      invoice.status = val as any;
+      updatePreview();
+    }
   });
 
   // Back button
@@ -165,8 +171,11 @@ async function setupEditorEvents(invoiceId: string | null): Promise<void> {
     setLoading(btn, true);
     const r = await window.finchAPI.pdf.export({ invoiceId: invoice.id! });
     setLoading(btn, false);
-    if (r.success) { showToast('PDF exported!', 'success'); window.finchAPI.shell.showItemInFolder(r.data!); }
-    else showToast(r.error ?? 'Export failed', 'error');
+    if (r.success) { 
+      showToast(t('invoices.pdf_saved_toast'), 'success'); 
+      window.finchAPI.shell.showItemInFolder(r.data!); 
+    }
+    else showToast(r.error ?? t('common.error'), 'error');
   });
 
   // Print
@@ -194,54 +203,44 @@ function renderForm(): void {
   panel.innerHTML = `
   <!-- Invoice Details -->
   <div class="section">
-    <div class="section-header"><h3>Invoice Details</h3></div>
+    <div class="section-header"><h3 data-i18n="invoices.details">${t('invoices.details')}</h3></div>
     <div class="section-body">
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Invoice Number</label>
+          <label class="form-label" data-i18n="invoices.number">${t('invoices.number')}</label>
           <input class="form-input mono" id="f-number" value="${esc(invoice.number ?? '')}" placeholder="INV-2025-0001">
         </div>
         <div class="form-group">
-          <label class="form-label">Prefix</label>
+          <label class="form-label" data-i18n="settings.invoice_prefix">${t('settings.invoice_prefix')}</label>
           <input class="form-input" id="f-prefix" value="${esc(invoice.prefix ?? 'INV')}" placeholder="INV" style="max-width:90px">
         </div>
         <div class="form-group">
-          <label class="form-label">PO Number</label>
-          <input class="form-input" id="f-po" value="${esc(invoice.poNumber ?? '')}" placeholder="Optional">
+          <label class="form-label" data-i18n="invoices.po_number">${t('invoices.po_number')}</label>
+          <input class="form-input" id="f-po" value="${esc(invoice.poNumber ?? '')}" placeholder="${t('invoices.optional')}" data-i18n-placeholder="invoices.optional">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Issue Date</label>
+          <label class="form-label" data-i18n="invoices.issue_date">${t('invoices.issue_date')}</label>
           <input class="form-input" id="f-issue" type="date" value="${invoice.issueDate ?? todayISO()}">
         </div>
         <div class="form-group">
-          <label class="form-label">Due Date</label>
+          <label class="form-label" data-i18n="invoices.due_date">${t('invoices.due_date')}</label>
           <input class="form-input" id="f-due" type="date" value="${invoice.dueDate ?? ''}">
         </div>
         <div class="form-group">
-          <label class="form-label">Currency</label>
-          <select class="form-select" id="f-currency">
-            ${[['USD','$'],['EUR','€'],['GBP','£'],['CAD','CA$'],['AUD','A$'],['JPY','¥'],['INR','₹']].map(([c,s]) =>
-              `<option value="${c}" data-sym="${s}" ${invoice.currency === c ? 'selected' : ''}>${c}</option>`).join('')}
-          </select>
+          <label class="form-label" data-i18n="invoices.currency">${t('invoices.currency')}</label>
+          <div id="f-currency-container"></div>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Tax Mode</label>
-          <select class="form-select" id="f-taxmode">
-            <option value="exclusive" ${invoice.taxMode !== 'inclusive' ? 'selected' : ''}>Exclusive (tax added on top)</option>
-            <option value="inclusive" ${invoice.taxMode === 'inclusive' ? 'selected' : ''}>Inclusive (tax in price)</option>
-          </select>
+          <label class="form-label" data-i18n="invoices.tax_mode">${t('invoices.tax_mode')}</label>
+          <div id="f-taxmode-container"></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Template</label>
-          <select class="form-select" id="f-template">
-            <option value="classic"  ${(invoice.template ?? 'classic') === 'classic'  ? 'selected' : ''}>Classic</option>
-            <option value="modern"   ${invoice.template === 'modern'   ? 'selected' : ''}>Modern</option>
-            <option value="minimal"  ${invoice.template === 'minimal'  ? 'selected' : ''}>Minimal</option>
-          </select>
+          <label class="form-label" data-i18n="invoices.template">${t('invoices.template')}</label>
+          <div id="f-template-container"></div>
         </div>
       </div>
     </div>
@@ -249,125 +248,122 @@ function renderForm(): void {
 
   <!-- Bill From -->
   <div class="section">
-    <div class="section-header"><h3>Bill From</h3></div>
+    <div class="section-header"><h3 data-i18n="invoices.bill_from">${t('invoices.bill_from')}</h3></div>
     <div class="section-body">
       <div class="form-row">
         <div class="form-group" style="grid-column:1/-1">
-          <label class="form-label">Business Name</label>
-          <input class="form-input" id="f-from-name" value="${esc(bf.name)}" placeholder="Your Business">
+          <label class="form-label" data-i18n="settings.business_name">${t('settings.business_name')}</label>
+          <input class="form-input" id="f-from-name" value="${esc(bf.name)}" placeholder="${t('settings.business_name')}" data-i18n-placeholder="settings.business_name">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Email</label>
+          <label class="form-label" data-i18n="settings.email">${t('settings.email')}</label>
           <input class="form-input" id="f-from-email" type="email" value="${esc(bf.email)}" placeholder="you@company.com">
         </div>
         <div class="form-group">
-          <label class="form-label">Phone</label>
+          <label class="form-label" data-i18n="settings.phone">${t('settings.phone')}</label>
           <input class="form-input" id="f-from-phone" value="${esc(bf.phone)}" placeholder="+1 555 0100">
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Address</label>
+        <label class="form-label" data-i18n="settings.address">${t('settings.address')}</label>
         <input class="form-input" id="f-from-addr" value="${esc(bf.address)}" placeholder="123 Main St">
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">City</label><input class="form-input" id="f-from-city" value="${esc(bf.city)}" placeholder="City"></div>
-        <div class="form-group"><label class="form-label">State</label><input class="form-input" id="f-from-state" value="${esc(bf.state)}" placeholder="State"></div>
-        <div class="form-group"><label class="form-label">ZIP</label><input class="form-input" id="f-from-zip" value="${esc(bf.zip)}" placeholder="ZIP"></div>
-        <div class="form-group"><label class="form-label">Country</label><input class="form-input" id="f-from-country" value="${esc(bf.country)}" placeholder="Country"></div>
+        <div class="form-group"><label class="form-label" data-i18n="settings.city">${t('settings.city')}</label><input class="form-input" id="f-from-city" value="${esc(bf.city)}" placeholder="${t('settings.city')}" data-i18n-placeholder="settings.city"></div>
+        <div class="form-group"><label class="form-label" data-i18n="settings.state">${t('settings.state')}</label><input class="form-input" id="f-from-state" value="${esc(bf.state)}" placeholder="${t('settings.state')}" data-i18n-placeholder="settings.state"></div>
+        <div class="form-group"><label class="form-label" data-i18n="settings.zip">${t('settings.zip')}</label><input class="form-input" id="f-from-zip" value="${esc(bf.zip)}" placeholder="${t('settings.zip')}" data-i18n-placeholder="settings.zip"></div>
+        <div class="form-group"><label class="form-label" data-i18n="settings.country">${t('settings.country')}</label><input class="form-input" id="f-from-country" value="${esc(bf.country)}" placeholder="${t('settings.country')}" data-i18n-placeholder="settings.country"></div>
       </div>
     </div>
   </div>
 
   <!-- Bill To -->
   <div class="section">
-    <div class="section-header"><h3>Bill To</h3></div>
+    <div class="section-header"><h3 data-i18n="invoices.bill_to">${t('invoices.bill_to')}</h3></div>
     <div class="section-body">
       <div class="autocomplete-wrap" style="margin-bottom:12px">
         <div class="form-group">
-          <label class="form-label">Client Name</label>
-          <input class="form-input" id="f-to-name" value="${esc(bt.name ?? '')}" placeholder="Search or enter client name" autocomplete="off">
+          <label class="form-label" data-i18n="clients.name_label">${t('clients.name_label')}</label>
+          <input class="form-input" id="f-to-name" value="${esc(bt.name ?? '')}" placeholder="${t('invoices.client_search_placeholder')}" data-i18n-placeholder="invoices.client_search_placeholder" autocomplete="off">
         </div>
         <div class="autocomplete-list" id="client-ac" style="display:none"></div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Company</label>
-          <input class="form-input" id="f-to-company" value="${esc(bt.company ?? '')}" placeholder="Company name">
+          <label class="form-label" data-i18n="clients.company_label">${t('clients.company_label')}</label>
+          <input class="form-input" id="f-to-company" value="${esc(bt.company ?? '')}" placeholder="${t('clients.company_placeholder')}" data-i18n-placeholder="clients.company_placeholder">
         </div>
         <div class="form-group">
-          <label class="form-label">Email</label>
+          <label class="form-label" data-i18n="clients.email_label">${t('clients.email_label')}</label>
           <input class="form-input" id="f-to-email" type="email" value="${esc(bt.email ?? '')}" placeholder="client@example.com">
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Address</label>
-        <input class="form-input" id="f-to-addr" value="${esc(bt.address ?? '')}" placeholder="Street address">
+        <label class="form-label" data-i18n="clients.address_label">${t('clients.address_label')}</label>
+        <input class="form-input" id="f-to-addr" value="${esc(bt.address ?? '')}" placeholder="${t('clients.address_placeholder')}" data-i18n-placeholder="clients.address_placeholder">
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">City</label><input class="form-input" id="f-to-city" value="${esc(bt.city ?? '')}" placeholder="City"></div>
-        <div class="form-group"><label class="form-label">State</label><input class="form-input" id="f-to-state" value="${esc(bt.state ?? '')}" placeholder="State"></div>
-        <div class="form-group"><label class="form-label">ZIP</label><input class="form-input" id="f-to-zip" value="${esc(bt.zip ?? '')}" placeholder="ZIP"></div>
-        <div class="form-group"><label class="form-label">Country</label><input class="form-input" id="f-to-country" value="${esc(bt.country ?? '')}" placeholder="Country"></div>
+        <div class="form-group"><label class="form-label" data-i18n="settings.city">${t('settings.city')}</label><input class="form-input" id="f-to-city" value="${esc(bt.city ?? '')}" placeholder="${t('settings.city')}" data-i18n-placeholder="settings.city"></div>
+        <div class="form-group"><label class="form-label" data-i18n="settings.state">${t('settings.state')}</label><input class="form-input" id="f-to-state" value="${esc(bt.state ?? '')}" placeholder="${t('settings.state')}" data-i18n-placeholder="settings.state"></div>
+        <div class="form-group"><label class="form-label" data-i18n="settings.zip">${t('settings.zip')}</label><input class="form-input" id="f-to-zip" value="${esc(bt.zip ?? '')}" placeholder="${t('settings.zip')}" data-i18n-placeholder="settings.zip"></div>
+        <div class="form-group"><label class="form-label" data-i18n="settings.country">${t('settings.country')}</label><input class="form-input" id="f-to-country" value="${esc(bt.country ?? '')}" placeholder="${t('settings.country')}" data-i18n-placeholder="settings.country"></div>
       </div>
     </div>
   </div>
 
   <!-- Line Items -->
   <div class="section">
-    <div class="section-header"><h3>Line Items</h3></div>
+    <div class="section-header"><h3 data-i18n="invoices.line_items">${t('invoices.line_items')}</h3></div>
     <div class="section-body" style="padding:12px 16px">
       <table class="line-items-table">
         <thead><tr>
-          <th class="td-desc">Description</th>
-          <th class="td-qty">Qty</th>
-          <th class="td-price">Unit Price</th>
-          <th class="td-tax">Tax %</th>
-          <th class="td-amt">Amount</th>
+          <th class="td-desc" data-i18n="invoices.description">${t('invoices.description')}</th>
+          <th class="td-qty" data-i18n="invoices.qty">${t('invoices.qty')}</th>
+          <th class="td-price" data-i18n="invoices.unit_price">${t('invoices.unit_price')}</th>
+          <th class="td-tax" data-i18n="invoices.tax_percent">${t('invoices.tax_percent')}</th>
+          <th class="td-amt" data-i18n="dashboard.amount">${t('dashboard.amount')}</th>
           <th class="td-del"></th>
         </tr></thead>
         <tbody id="line-items-body"></tbody>
       </table>
       <button class="btn btn-ghost btn-sm" id="add-line-btn" style="margin-top:10px">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-        Add Line
+        <span data-i18n="invoices.add_line">${t('invoices.add_line')}</span>
       </button>
     </div>
   </div>
 
   <!-- Totals & Notes -->
   <div class="section">
-    <div class="section-header"><h3>Totals & Notes</h3></div>
+    <div class="section-header"><h3 data-i18n="invoices.totals_notes">${t('invoices.totals_notes')}</h3></div>
     <div class="section-body">
       <div class="form-row" style="margin-bottom:12px">
         <div class="form-group">
-          <label class="form-label">Discount</label>
+          <label class="form-label" data-i18n="invoices.discount">${t('invoices.discount')}</label>
           <div style="display:flex;gap:6px">
-            <select class="form-select" id="f-disc-type" style="width:110px;flex-shrink:0">
-              <option value="percent" ${invoice.discount?.type !== 'fixed' ? 'selected' : ''}>Percent %</option>
-              <option value="fixed"   ${invoice.discount?.type === 'fixed' ? 'selected' : ''}>Fixed ${sym}</option>
-            </select>
+            <div id="f-disc-type-container"></div>
             <input class="form-input mono" id="f-disc-val" type="number" min="0" step="0.01" value="${invoice.discount?.value ?? 0}">
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Shipping</label>
+          <label class="form-label" data-i18n="invoices.shipping">${t('invoices.shipping')}</label>
           <input class="form-input mono" id="f-shipping" type="number" min="0" step="0.01" value="${invoice.shipping ?? 0}" placeholder="0.00">
         </div>
       </div>
       <div id="totals-display" class="totals-grid" style="margin-bottom:16px"></div>
       <div class="form-group">
-        <label class="form-label">Notes</label>
-        <textarea class="form-textarea" id="f-notes" placeholder="Payment terms, bank details, thank-you note…">${esc(invoice.notes ?? '')}</textarea>
+        <label class="form-label" data-i18n="invoices.notes">${t('invoices.notes')}</label>
+        <textarea class="form-textarea" id="f-notes" placeholder="${t('invoices.notes_placeholder')}" data-i18n-placeholder="invoices.notes_placeholder">${esc(invoice.notes ?? '')}</textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Terms & Conditions</label>
-        <textarea class="form-textarea" id="f-terms" placeholder="Terms and conditions…">${esc(invoice.terms ?? '')}</textarea>
+        <label class="form-label" data-i18n="invoices.terms_conditions">${t('invoices.terms_conditions')}</label>
+        <textarea class="form-textarea" id="f-terms" placeholder="${t('invoices.terms_placeholder')}" data-i18n-placeholder="invoices.terms_placeholder">${esc(invoice.terms ?? '')}</textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Footer</label>
-        <textarea class="form-textarea" id="f-footer" placeholder="Footer text (e.g. payment instructions, bank details)…">${esc(invoice.footerText ?? '')}</textarea>
+        <label class="form-label" data-i18n="invoices.footer">${t('invoices.footer')}</label>
+        <textarea class="form-textarea" id="f-footer" placeholder="${t('invoices.footer_placeholder')}" data-i18n-placeholder="invoices.footer_placeholder">${esc(invoice.footerText ?? '')}</textarea>
       </div>
     </div>
   </div>`;
@@ -389,19 +385,19 @@ function renderLineItems(): void {
   const sym = invoice.currencySymbol ?? '$';
 
   if (!items.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:16px;font-size:0.875rem">No items yet — add a line above.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-tertiary);padding:16px;font-size:0.875rem" data-i18n="invoices.no_items">${t('invoices.no_items')}</td></tr>`;
     return;
   }
 
   tbody.innerHTML = items.map((item, idx) => `
     <tr data-idx="${idx}">
-      <td class="td-desc"><input class="line-input" data-field="description" data-idx="${idx}" value="${esc(item.description)}" placeholder="Item description"></td>
+      <td class="td-desc"><input class="line-input" data-field="description" data-idx="${idx}" value="${esc(item.description)}" placeholder="${t('invoices.item_desc_placeholder')}" data-i18n-placeholder="invoices.item_desc_placeholder"></td>
       <td class="td-qty"><input class="line-input mono" data-field="quantity" data-idx="${idx}" type="number" min="0" step="0.01" value="${item.quantity}"></td>
       <td class="td-price"><input class="line-input mono" data-field="unitPrice" data-idx="${idx}" type="number" min="0" step="0.01" value="${item.unitPrice}"></td>
       <td class="td-tax"><input class="line-input mono" data-field="taxRate" data-idx="${idx}" type="number" min="0" max="100" step="0.01" value="${item.taxRate}"></td>
       <td class="td-amt"><div class="line-amount">${formatCurrency(item.quantity * item.unitPrice, sym)}</div></td>
       <td class="td-del">
-        <button class="btn btn-ghost btn-icon btn-sm del-line-btn" data-idx="${idx}" style="color:var(--danger)" title="Remove">
+        <button class="btn btn-ghost btn-icon btn-sm del-line-btn" data-idx="${idx}" style="color:var(--danger)" title="${t('common.remove')}" data-i18n-title="common.remove">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
       </td>
@@ -414,9 +410,9 @@ function renderLineItems(): void {
       const field = input.dataset.field as keyof LineItem;
       const items = invoice.lineItems!;
       if (field === 'description') {
-        (items[idx] as Record<string, unknown>)[field] = input.value;
+        (items[idx] as any)[field] = input.value;
       } else {
-        (items[idx] as Record<string, unknown>)[field] = parseFloat(input.value) || 0;
+        (items[idx] as any)[field] = parseFloat(input.value) || 0;
       }
       items[idx].amount = items[idx].quantity * items[idx].unitPrice;
       // Update amount cell
@@ -462,7 +458,7 @@ function bindFormEvents(): void {
     el?.addEventListener('input', () => {
       const bf = invoice.billFrom ?? { name: '', address: '', city: '', state: '', zip: '', country: '', email: '', phone: '' };
       const key = f === 'addr' ? 'address' : f;
-      (bf as Record<string, string>)[key] = el.value;
+      (bf as any)[key] = el.value;
       invoice.billFrom = bf;
       recalculate();
     });
@@ -474,42 +470,66 @@ function bindFormEvents(): void {
     el?.addEventListener('input', () => {
       const bt = invoice.billTo ?? {};
       const key = f === 'addr' ? 'address' : f;
-      (bt as Record<string, string>)[key] = el.value;
+      (bt as any)[key] = el.value;
       invoice.billTo = bt;
       recalculate();
     });
   });
 
-  // Discount type
-  const discType = document.getElementById('f-disc-type') as HTMLSelectElement;
-  discType?.addEventListener('change', () => {
-    if (!invoice.discount) invoice.discount = { type: 'percent', value: 0 };
-    invoice.discount.type = discType.value as 'percent' | 'fixed';
-    pushHistory(); recalculate();
+  // Custom selects
+  const currencies = [['USD','$'],['EUR','€'],['GBP','£'],['CAD','CA$'],['AUD','A$'],['JPY','¥'],['INR','₹']];
+  createCustomSelect(document.getElementById('f-currency-container')!, {
+    id: 'f-currency',
+    options: currencies.map(([c]) => ({ label: c, value: c })),
+    initialValue: invoice.currency ?? 'USD',
+    onChange: (val) => {
+      invoice.currency = val;
+      const sym = currencies.find(c => c[0] === val)?.[1] ?? '$';
+      invoice.currencySymbol = sym;
+      renderLineItems();
+      pushHistory(); recalculate();
+    }
   });
 
-  // Currency
-  const curSel = document.getElementById('f-currency') as HTMLSelectElement;
-  curSel?.addEventListener('change', () => {
-    const opt = curSel.options[curSel.selectedIndex];
-    invoice.currency = curSel.value;
-    invoice.currencySymbol = (opt as HTMLOptionElement & { dataset: DOMStringMap }).dataset.sym ?? '$';
-    renderLineItems();
-    pushHistory(); recalculate();
+  createCustomSelect(document.getElementById('f-taxmode-container')!, {
+    id: 'f-taxmode',
+    options: [
+      { label: t('invoices.exclusive'), value: 'exclusive' },
+      { label: t('invoices.inclusive'), value: 'inclusive' }
+    ],
+    initialValue: invoice.taxMode || 'exclusive',
+    onChange: (val) => {
+      invoice.taxMode = val as 'inclusive' | 'exclusive';
+      pushHistory(); recalculate();
+    }
   });
 
-  // Tax mode
-  const taxMode = document.getElementById('f-taxmode') as HTMLSelectElement;
-  taxMode?.addEventListener('change', () => {
-    invoice.taxMode = taxMode.value as 'inclusive' | 'exclusive';
-    pushHistory(); recalculate();
+  createCustomSelect(document.getElementById('f-template-container')!, {
+    id: 'f-template',
+    options: [
+      { label: t('invoices.classic'), value: 'classic' },
+      { label: t('invoices.modern'), value: 'modern' },
+      { label: t('invoices.minimal'), value: 'minimal' }
+    ],
+    initialValue: invoice.template || 'classic',
+    onChange: (val) => {
+      invoice.template = val as 'classic' | 'modern' | 'minimal';
+      pushHistory(); recalculate();
+    }
   });
 
-  // Template
-  const templateSel = document.getElementById('f-template') as HTMLSelectElement;
-  templateSel?.addEventListener('change', () => {
-    invoice.template = templateSel.value as 'classic' | 'modern' | 'minimal';
-    pushHistory(); recalculate();
+  createCustomSelect(document.getElementById('f-disc-type-container')!, {
+    id: 'f-disc-type',
+    options: [
+      { label: t('invoices.percent'), value: 'percent' },
+      { label: t('invoices.fixed'), value: 'fixed' }
+    ],
+    initialValue: invoice.discount?.type || 'percent',
+    onChange: (val) => {
+      if (!invoice.discount) invoice.discount = { type: 'percent', value: 0 };
+      invoice.discount.type = val as 'percent' | 'fixed';
+      pushHistory(); recalculate();
+    }
   });
 
   // Add line button
@@ -598,11 +618,11 @@ function renderTotals(): void {
   const sym = invoice.currencySymbol ?? '$';
   const disc = invoice.discount ?? { type: 'percent' as const, value: 0 };
   display.innerHTML = `
-    <div class="total-row"><span class="total-label">Subtotal</span><span class="total-value">${formatCurrency(invoice.subtotal ?? 0, sym)}</span></div>
-    ${(invoice.discountAmount ?? 0) > 0 ? `<div class="total-row"><span class="total-label">Discount${disc.type === 'percent' ? ` (${disc.value}%)` : ''}</span><span class="total-value" style="color:var(--danger)">−${formatCurrency(invoice.discountAmount ?? 0, sym)}</span></div>` : ''}
-    ${(invoice.taxTotal ?? 0) > 0 ? `<div class="total-row"><span class="total-label">Tax</span><span class="total-value">${formatCurrency(invoice.taxTotal ?? 0, sym)}</span></div>` : ''}
-    ${(invoice.shipping ?? 0) > 0 ? `<div class="total-row"><span class="total-label">Shipping</span><span class="total-value">${formatCurrency(invoice.shipping ?? 0, sym)}</span></div>` : ''}
-    <div class="total-row grand"><span class="total-label">Total Due</span><span class="total-value">${formatCurrency(invoice.grandTotal ?? 0, sym)}</span></div>`;
+    <div class="total-row"><span class="total-label" data-i18n="invoices.subtotal">${t('invoices.subtotal')}</span><span class="total-value">${formatCurrency(invoice.subtotal ?? 0, sym)}</span></div>
+    ${(invoice.discountAmount ?? 0) > 0 ? `<div class="total-row"><span class="total-label" data-i18n="invoices.discount">${t('invoices.discount')}${disc.type === 'percent' ? ` (${disc.value}%)` : ''}</span><span class="total-value" style="color:var(--danger)">−${formatCurrency(invoice.discountAmount ?? 0, sym)}</span></div>` : ''}
+    ${(invoice.taxTotal ?? 0) > 0 ? `<div class="total-row"><span class="total-label" data-i18n="invoices.tax">${t('invoices.tax')}</span><span class="total-value">${formatCurrency(invoice.taxTotal ?? 0, sym)}</span></div>` : ''}
+    ${(invoice.shipping ?? 0) > 0 ? `<div class="total-row"><span class="total-label" data-i18n="invoices.shipping">${t('invoices.shipping')}</span><span class="total-value">${formatCurrency(invoice.shipping ?? 0, sym)}</span></div>` : ''}
+    <div class="total-row grand"><span class="total-label" data-i18n="invoices.total_due">${t('invoices.total_due')}</span><span class="total-value">${formatCurrency(invoice.grandTotal ?? 0, sym)}</span></div>`;
 }
 
 const debouncedPreview = debounce(doUpdatePreview, 300);
@@ -614,7 +634,9 @@ function doUpdatePreview(): void {
   if (settings.businessDetails.logo && invoice.billFrom) {
     invoice.billFrom.logo = settings.businessDetails.logo;
   }
-  const html = generatePreviewHtml(invoice, settings);
+  const systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = resolveInvoiceTheme(settings.invoiceTheme || 'auto', settings.theme, systemIsDark);
+  const html = generatePreviewHtml(invoice, settings, theme);
   previewIframe.srcdoc = html;
   previewIframe.onload = () => {
     const h = previewIframe!.contentDocument?.body?.scrollHeight ?? 600;
@@ -627,7 +649,10 @@ async function saveInvoice(silent = false): Promise<boolean> {
   if (isSaving) return false;
   isSaving = true;
   const ind = document.getElementById('autosave-ind');
-  if (ind) { ind.textContent = ''; ind.innerHTML = '<div class="autosave-dot"></div><span>Saving…</span>'; }
+  if (ind) { 
+    ind.textContent = ''; 
+    ind.innerHTML = `<div class="autosave-dot"></div><span data-i18n="invoices.saving">${t('invoices.saving')}</span>`; 
+  }
 
   let r;
   if (invoice.id) {
@@ -640,11 +665,20 @@ async function saveInvoice(silent = false): Promise<boolean> {
   if (r.success && r.data) {
     Object.assign(invoice, r.data);
     isDirty = false;
-    if (ind) { ind.className = 'autosave-indicator saved'; ind.innerHTML = '<div class="autosave-dot"></div><span>Saved</span>'; setTimeout(() => { if (ind) { ind.className = 'autosave-indicator'; ind.innerHTML = '<div class="autosave-dot"></div><span>Draft</span>'; } }, 2000); }
-    if (!silent) showToast('Invoice saved', 'success');
+    if (ind) { 
+      ind.className = 'autosave-indicator saved'; 
+      ind.innerHTML = `<div class="autosave-dot"></div><span data-i18n="invoices.saved">${t('invoices.saved')}</span>`; 
+      setTimeout(() => { 
+        if (ind) { 
+          ind.className = 'autosave-indicator'; 
+          ind.innerHTML = `<div class="autosave-dot"></div><span data-i18n="status.draft">${t('status.draft')}</span>`; 
+        } 
+      }, 2000); 
+    }
+    if (!silent) showToast(t('invoices.updated_toast'), 'success');
     return true;
   } else {
-    if (!silent) showToast(r.error ?? 'Save failed', 'error');
+    if (!silent) showToast(r.error ?? t('common.error'), 'error');
     return false;
   }
 }

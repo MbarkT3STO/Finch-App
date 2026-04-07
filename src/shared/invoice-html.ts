@@ -78,15 +78,21 @@ export function renderFooterTextHtml(footerText: string | undefined, minimal = f
 
 function darkModeOverrides(): string {
   return `
-body{background:#1a1a2e!important;color:#e5e7eb!important}
-.dates{background:#2d2d44!important}
-.lbl,.dl{color:#9ca3af!important}
-.tl{color:#9ca3af!important}
-.notes p,.footer-text p{color:#d1d5db!important}
-.footer{color:#6b7280!important}
-table thead th{color:#9ca3af!important;border-bottom-color:#374151!important}
-table tbody td{border-bottom-color:#374151!important;color:#e5e7eb!important}
-.notes,.footer-text{border-top-color:#374151!important}
+body{background:#0F172A!important;color:#F8FAFC!important}
+.hd{border-bottom-color:#334155!important}
+.brand{color:#F8FAFC!important}
+.inv-num{color:#F8FAFC!important}
+.dates{background:#1E293B!important;border:1px solid #334155!important}
+.dv{color:#F8FAFC!important}
+.lbl,.dl,.tl{color:#94A3B8!important}
+.notes p,.footer-text p{color:#CBD5E1!important}
+.footer{color:#64748B!important}
+table thead th{color:#94A3B8!important;border-bottom:2px solid #334155!important}
+table tbody td{border-bottom:1px solid #1E293B!important;color:#F8FAFC!important}
+.totals .tr{border-bottom-color:#1E293B!important}
+.totals .tg{border-top-color:#F8FAFC!important;color:#F8FAFC!important}
+.totals .tg .tv{color:#F8FAFC!important}
+.notes,.footer-text{border-top-color:#334155!important}
 `;
 }
 
@@ -259,17 +265,21 @@ tbody td{padding:10px;color:#1A1A2E}
 .footer{margin-top:40px;text-align:center;font-size:11px;color:#9CA3AF}
 @media print{.mod-header{padding:24px 24px}.body-pad{padding:24px}}
 ${resolvedTheme === 'dark' ? `
-body{background:#1a1a2e!important;color:#e5e7eb!important}
-.mod-header{background:#f3f4f6!important}
-.mod-header .brand{color:#1a1a2e!important}
-.mod-header .inv-num{color:#1a1a2e!important}
-.lbl,.dl{color:#9ca3af!important}
-.tl{color:#9ca3af!important}
-.notes p,.footer-text p{color:#d1d5db!important}
-.footer{color:#6b7280!important}
-table thead th{color:#9ca3af!important;border-bottom-color:#374151!important}
-table tbody td{border-bottom-color:#374151!important;color:#e5e7eb!important}
-.notes,.footer-text{border-top-color:#374151!important}
+body{background:#0F172A!important;color:#F8FAFC!important}
+.mod-header{background:#1E293B!important;border-bottom:1px solid #334155}
+.mod-header .brand{color:#F8FAFC!important}
+.mod-header .inv-num{color:#F8FAFC!important}
+.lbl,.dl,.tl{color:#94A3B8!important}
+.dv{color:#F8FAFC!important}
+.notes p,.footer-text p{color:#CBD5E1!important}
+.footer{color:#64748B!important}
+table thead th{color:#94A3B8!important;border-bottom-color:#334155!important}
+table tbody td{border-bottom:1px solid #1E293B!important;color:#F8FAFC!important}
+table tbody tr:nth-child(even){background:#1E293B!important}
+table tbody tr:nth-child(odd){background:#0F172A!important}
+.tg{background:#F8FAFC!important;color:#0F172A!important}
+.tg .tv{color:#0F172A!important}
+.notes,.footer-text{border-top-color:#334155!important}
 ` : ''}
 </style></head><body>
 <div class="mod-header">

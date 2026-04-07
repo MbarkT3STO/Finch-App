@@ -10,11 +10,12 @@ import {
 } from '../../shared/utils';
 import { buildTaxSummary } from '../../shared/tax-report-generator';
 import { forecastRevenue } from '../../shared/forecast-engine';
-import { escapeHtml, showToast } from './ui-utils';
+import { escapeHtml, showToast, createCustomSelect } from './ui-utils';
+import { t } from './i18n';
 
 declare const window: Window & { finchAPI: import('../../shared/types').FinchAPI };
 
-const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const getMonthLabels = () => t('common.months') as unknown as string[];
 
 // ─── Exported helper (also used by tests) ────────────────────────────────────
 
@@ -50,7 +51,8 @@ async function loadReports(content: HTMLElement): Promise<void> {
   if (!invoicesResult.success || !sessionResult.success) {
     content.innerHTML = `
       <div class="inline-error" style="padding:24px;color:var(--danger)">
-        Failed to load reports data: ${escapeHtml(invoicesResult.error ?? sessionResult.error ?? 'Unknown error')}
+        <span data-i18n="reports.loading_data">${t('reports.loading_data')}</span>
+        ${escapeHtml(invoicesResult.error ?? sessionResult.error ?? 'Unknown error')}
       </div>`;
     return;
   }
@@ -72,17 +74,15 @@ async function loadReports(content: HTMLElement): Promise<void> {
 
   content.innerHTML = `
     <div class="page-header">
-      <h1>Reports</h1>
+      <h1 data-i18n="reports.title">${t('reports.title')}</h1>
     </div>
     <div style="padding:0 28px 28px">
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
-        <label for="year-select" style="font-weight:500">Year:</label>
-        <select id="year-select" class="form-control" style="width:120px">
-          ${years.map(y => `<option value="${y}"${y === currentYear ? ' selected' : ''}>${y}</option>`).join('')}
-        </select>
+        <label style="font-weight:500" data-i18n="reports.year_label">${t('reports.year_label')}</label>
+        <div id="year-select-container" style="width:140px"></div>
         <div style="display:flex;gap:4px">
-          <button id="btn-monthly" class="btn btn-primary" style="min-width:90px">Monthly</button>
-          <button id="btn-yearly" class="btn btn-secondary" style="min-width:90px">Yearly</button>
+          <button id="btn-monthly" class="btn btn-primary" style="min-width:90px" data-i18n="reports.monthly_btn">${t('reports.monthly_btn')}</button>
+          <button id="btn-yearly" class="btn btn-secondary" style="min-width:90px" data-i18n="reports.yearly_btn">${t('reports.yearly_btn')}</button>
         </div>
       </div>
 
@@ -100,7 +100,6 @@ async function loadReports(content: HTMLElement): Promise<void> {
       <div id="expense-section" style="margin-bottom:28px"></div>
     </div>`;
 
-  const yearSelect = content.querySelector<HTMLSelectElement>('#year-select')!;
   const btnMonthly = content.querySelector<HTMLButtonElement>('#btn-monthly')!;
   const btnYearly = content.querySelector<HTMLButtonElement>('#btn-yearly')!;
   const canvas = content.querySelector<HTMLCanvasElement>('#revenue-chart')!;
@@ -114,9 +113,13 @@ async function loadReports(content: HTMLElement): Promise<void> {
     renderExpenseSection(content.querySelector('#expense-section')!, expenses, selectedYear);
   }
 
-  yearSelect.addEventListener('change', () => {
-    selectedYear = parseInt(yearSelect.value, 10);
-    update();
+  createCustomSelect(content.querySelector('#year-select-container')!, {
+    options: years.map(y => ({ label: String(y), value: String(y) })),
+    initialValue: String(selectedYear),
+    onChange: (val) => {
+      selectedYear = parseInt(val, 10);
+      update();
+    }
   });
 
   btnMonthly.addEventListener('click', () => {
@@ -142,35 +145,35 @@ async function loadReports(content: HTMLElement): Promise<void> {
     el.innerHTML = `
       <div class="metric-card" style="padding:20px 24px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <h3 style="margin:0;font-size:0.9rem;font-weight:600">Expenses — ${year}</h3>
+          <h3 style="margin:0;font-size:0.9rem;font-weight:600" data-i18n="reports.expenses_title" data-i18n-vars='{"year":"${year}"}'>${t('reports.expenses_title', { year: String(year) })}</h3>
         </div>
 
         <form id="expense-form" style="background:var(--bg-surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;margin-bottom:16px">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
             <div class="form-group">
-              <label class="form-label">Date</label>
+              <label class="form-label" data-i18n="reports.date_label">${t('reports.date_label')}</label>
               <input id="exp-date" type="date" class="form-input" value="${escapeHtml(editing?.date ?? '')}">
               <span id="exp-date-err" class="form-error" style="display:none"></span>
             </div>
             <div class="form-group">
-              <label class="form-label">Amount</label>
+              <label class="form-label" data-i18n="reports.amount_label">${t('reports.amount_label')}</label>
               <input id="exp-amount" type="number" min="0" step="0.01" class="form-input" value="${editing ? editing.amount : ''}" placeholder="0.00">
               <span id="exp-amount-err" class="form-error" style="display:none"></span>
             </div>
             <div class="form-group">
-              <label class="form-label">Category</label>
-              <input id="exp-category" type="text" class="form-input" value="${escapeHtml(editing?.category ?? '')}" placeholder="e.g. Software">
+              <label class="form-label" data-i18n="reports.category_label">${t('reports.category_label')}</label>
+              <input id="exp-category" type="text" class="form-input" value="${escapeHtml(editing?.category ?? '')}" placeholder="${t('reports.category_placeholder')}" data-i18n-placeholder="reports.category_placeholder">
               <span id="exp-category-err" class="form-error" style="display:none"></span>
             </div>
             <div class="form-group">
-              <label class="form-label">Description</label>
-              <input id="exp-description" type="text" class="form-input" value="${escapeHtml(editing?.description ?? '')}" placeholder="e.g. Figma subscription">
+              <label class="form-label" data-i18n="reports.description_label">${t('reports.description_label')}</label>
+              <input id="exp-description" type="text" class="form-input" value="${escapeHtml(editing?.description ?? '')}" placeholder="${t('reports.description_placeholder')}" data-i18n-placeholder="reports.description_placeholder">
               <span id="exp-description-err" class="form-error" style="display:none"></span>
             </div>
           </div>
           <div style="display:flex;gap:8px">
-            <button type="submit" class="btn btn-primary btn-sm">${editing ? 'Update Expense' : 'Add Expense'}</button>
-            ${editing ? `<button type="button" id="exp-cancel-edit" class="btn btn-secondary btn-sm">Cancel</button>` : ''}
+            <button type="submit" class="btn btn-primary btn-sm" data-i18n="${editing ? 'reports.update_expense_btn' : 'reports.add_expense_btn'}">${editing ? t('reports.update_expense_btn') : t('reports.add_expense_btn')}</button>
+            ${editing ? `<button type="button" id="exp-cancel-edit" class="btn btn-secondary btn-sm" data-i18n="common.cancel">${t('common.cancel')}</button>` : ''}
           </div>
         </form>
 
@@ -178,15 +181,15 @@ async function loadReports(content: HTMLElement): Promise<void> {
           ${yearExpenses.length === 0
             ? `<div class="empty-state" style="padding:32px 0">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
-                <p>No expenses recorded for ${year}.</p>
+                <p data-i18n="reports.no_expenses" data-i18n-vars='{"year":"${year}"}'>${t('reports.no_expenses', { year: String(year) })}</p>
               </div>`
             : `<table class="data-table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Category</th>
-                    <th>Description</th>
-                    <th class="col-amount">Amount</th>
+                    <th data-i18n="reports.date_label">${t('reports.date_label')}</th>
+                    <th data-i18n="reports.category_label">${t('reports.category_label')}</th>
+                    <th data-i18n="reports.description_label">${t('reports.description_label')}</th>
+                    <th class="col-amount" data-i18n="reports.amount_label">${t('reports.amount_label')}</th>
                     <th class="col-actions"></th>
                   </tr>
                 </thead>
@@ -199,8 +202,12 @@ async function loadReports(content: HTMLElement): Promise<void> {
                       <td class="col-amount">${escapeHtml(formatCurrency(exp.amount))}</td>
                       <td class="col-actions">
                         <div style="display:flex;gap:4px;justify-content:flex-end">
-                          <button class="btn btn-ghost btn-sm exp-edit-btn" data-id="${escapeHtml(exp.id)}">Edit</button>
-                          <button class="btn btn-danger btn-sm exp-delete-btn" data-id="${escapeHtml(exp.id)}">Delete</button>
+                          <button class="btn btn-ghost btn-icon btn-sm exp-edit-btn" data-id="${escapeHtml(exp.id)}" title="${t('invoices.edit_tip')}" data-i18n-title="invoices.edit_tip">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          </button>
+                          <button class="btn btn-ghost btn-icon btn-sm exp-delete-btn" data-id="${escapeHtml(exp.id)}" title="${t('invoices.del_tip')}" data-i18n-title="invoices.del_tip" style="color:var(--danger)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                          </button>
                         </div>
                       </td>
                     </tr>`).join('')}
@@ -224,10 +231,10 @@ async function loadReports(content: HTMLElement): Promise<void> {
         else { el2.style.display = 'none'; }
       }
 
-      setErr('#exp-date-err', !dateVal ? 'Date is required.' : '');
-      setErr('#exp-amount-err', amountVal === '' ? 'Amount is required.' : parseFloat(amountVal) < 0 ? 'Amount must be ≥ 0.' : '');
-      setErr('#exp-category-err', !categoryVal ? 'Category is required.' : '');
-      setErr('#exp-description-err', !descriptionVal ? 'Description is required.' : '');
+      setErr('#exp-date-err', !dateVal ? t('reports.date_req') : '');
+      setErr('#exp-amount-err', amountVal === '' ? t('reports.amount_req') : parseFloat(amountVal) < 0 ? t('reports.amount_min') : '');
+      setErr('#exp-category-err', !categoryVal ? t('reports.category_req') : '');
+      setErr('#exp-description-err', !descriptionVal ? t('reports.description_req') : '');
 
       if (!valid) return;
 
@@ -239,7 +246,7 @@ async function loadReports(content: HTMLElement): Promise<void> {
           expenses = expenses.map(ex => ex.id === editingExpenseId ? res.data! : ex);
           editingExpenseId = null;
         } else {
-          showToast(`Failed to update expense: ${res.error ?? 'Unknown error'}`, 'error');
+          showToast(`${t('reports.exp_failed_update')}: ${res.error ?? 'Unknown error'}`, 'error');
           return;
         }
       } else {
@@ -247,7 +254,7 @@ async function loadReports(content: HTMLElement): Promise<void> {
         if (res.success && res.data) {
           expenses = [...expenses, res.data];
         } else {
-          showToast(`Failed to add expense: ${res.error ?? 'Unknown error'}`, 'error');
+          showToast(`${t('reports.exp_failed_add')}: ${res.error ?? 'Unknown error'}`, 'error');
           return;
         }
       }
@@ -262,7 +269,8 @@ async function loadReports(content: HTMLElement): Promise<void> {
 
     // Edit / Delete delegation
     el.querySelector('#expense-list')!.addEventListener('click', async (e) => {
-      const target = e.target as HTMLElement;
+      const target = (e.target as HTMLElement).closest('button');
+      if (!target) return;
       const id = target.dataset.id;
       if (!id) return;
 
@@ -276,7 +284,7 @@ async function loadReports(content: HTMLElement): Promise<void> {
           if (editingExpenseId === id) editingExpenseId = null;
           update();
         } else {
-          showToast(`Failed to delete expense: ${res.error ?? 'Unknown error'}`, 'error');
+          showToast(`${t('reports.exp_failed_del')}: ${res.error ?? 'Unknown error'}`, 'error');
         }
       }
     });
@@ -308,6 +316,8 @@ function renderChart(
   let values: number[];
   let forecastValues: number[] = [];
   let forecastLabels: string[] = [];
+
+  const MONTH_LABELS = getMonthLabels();
 
   if (mode === 'monthly') {
     values = groupByMonth(invoices, year);
@@ -379,10 +389,11 @@ function renderChart(
   ctx.fillStyle = 'var(--text-secondary, #888)';
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'center';
-  values.forEach((_, i) => {
+  labels.forEach((lbl, i) => {
+    if (!values[i] && values[i] !== 0) return; // Skip if no historical value but extra labels (though should match)
     const x = PADDING.left + i * (barW + gap) + barW / 2;
     const y = PADDING.top + chartH + 16;
-    ctx.fillText(labels[i] ?? '', x, y);
+    ctx.fillText(lbl ?? '', x, y);
   });
   forecastLabels.forEach((lbl, i) => {
     const x = PADDING.left + (values.length + i) * (barW + gap) + barW / 2;
@@ -410,14 +421,14 @@ function renderBreakdown(
   const { paidTotal, unpaidTotal, paidPct, unpaidPct } = computePaidUnpaidBreakdown(filtered, userId);
 
   el.innerHTML = `
-    <h3 style="margin:0 0 12px;font-size:0.9rem;font-weight:600">Paid vs Unpaid</h3>
+    <h3 style="margin:0 0 12px;font-size:0.9rem;font-weight:600" data-i18n="reports.paid_vs_unpaid">${t('reports.paid_vs_unpaid')}</h3>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div style="display:flex;justify-content:space-between">
-        <span style="color:var(--success)">Paid</span>
+        <span style="color:var(--success)" data-i18n="status.paid">${t('status.paid')}</span>
         <span>${escapeHtml(formatCurrency(paidTotal))} <strong>(${paidPct}%)</strong></span>
       </div>
       <div style="display:flex;justify-content:space-between">
-        <span style="color:var(--warning)">Unpaid / Overdue</span>
+        <span style="color:var(--warning)" data-i18n="status.unpaid">${t('status.unpaid')} / ${t('status.overdue')}</span>
         <span>${escapeHtml(formatCurrency(unpaidTotal))} <strong>(${unpaidPct}%)</strong></span>
       </div>
     </div>`;
@@ -443,12 +454,12 @@ function renderCountSummary(
   const draft = userFiltered.filter(inv => inv.status === 'draft').length;
 
   el.innerHTML = `
-    <h3 style="margin:0 0 12px;font-size:0.9rem;font-weight:600">Invoice Count Summary</h3>
+    <h3 style="margin:0 0 12px;font-size:0.9rem;font-weight:600" data-i18n="reports.count_summary">${t('reports.count_summary')}</h3>
     <div style="display:flex;flex-direction:column;gap:8px">
-      <div style="display:flex;justify-content:space-between"><span>Total Issued</span><strong>${total}</strong></div>
-      <div style="display:flex;justify-content:space-between"><span>Paid</span><strong>${paid}</strong></div>
-      <div style="display:flex;justify-content:space-between"><span>Unpaid / Overdue</span><strong>${unpaidOverdue}</strong></div>
-      <div style="display:flex;justify-content:space-between"><span>Draft</span><strong>${draft}</strong></div>
+      <div style="display:flex;justify-content:space-between"><span data-i18n="reports.total_issued">${t('reports.total_issued')}</span><strong>${total}</strong></div>
+      <div style="display:flex;justify-content:space-between"><span data-i18n="status.paid">${t('status.paid')}</span><strong>${paid}</strong></div>
+      <div style="display:flex;justify-content:space-between"><span>${t('status.unpaid')} / ${t('status.overdue')}</span><strong>${unpaidOverdue}</strong></div>
+      <div style="display:flex;justify-content:space-between"><span data-i18n="status.draft">${t('status.draft')}</span><strong>${draft}</strong></div>
     </div>`;
 }
 
@@ -456,6 +467,7 @@ function renderCountSummary(
 
 export function renderTaxSummary(el: Element, invoices: Invoice[], year: number): void {
   const rows = taxSummaryByMonth(invoices, year);
+  const MONTH_LABELS = getMonthLabels();
 
   const totals = rows.reduce(
     (acc, row) => {
@@ -478,24 +490,25 @@ export function renderTaxSummary(el: Element, invoices: Invoice[], year: number)
   el.innerHTML = `
     <div class="metric-card" style="padding:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <h3 style="margin:0;font-size:0.9rem;font-weight:600">Tax Summary — ${year}</h3>
-        <div style="position:relative;display:inline-block">
-          <button id="export-tax-btn" class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px">
-            Export Tax Report ▾
+        <h3 style="margin:0;font-size:0.9rem;font-weight:600" data-i18n="reports.tax_summary_title" data-i18n-vars='{"year":"${year}"}'>${t('reports.tax_summary_title', { year: String(year) })}</h3>
+        <div class="custom-select-wrap" id="export-tax-wrap">
+          <button id="export-tax-btn" class="custom-select-trigger" style="font-size:0.8rem;height:32px;padding:0 12px" data-i18n="reports.export_tax_report">
+            <span class="trigger-label">${t('reports.export_tax_report')}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </button>
-          <div id="export-tax-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--surface,#fff);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.12);z-index:100;min-width:160px">
-            <button id="export-csv-btn" style="display:block;width:100%;text-align:left;padding:8px 14px;background:none;border:none;cursor:pointer;font-size:0.85rem;color:var(--text)">Export as CSV</button>
-            <button id="export-pdf-btn" style="display:block;width:100%;text-align:left;padding:8px 14px;background:none;border:none;cursor:pointer;font-size:0.85rem;color:var(--text)">Export as PDF</button>
+          <div class="custom-select-menu" id="export-tax-menu" style="right:0;left:auto;min-width:160px">
+            <div id="export-csv-btn" class="custom-select-option" data-i18n="reports.export_csv">${t('reports.export_csv')}</div>
+            <div id="export-pdf-btn" class="custom-select-option" data-i18n="reports.export_pdf">${t('reports.export_pdf')}</div>
           </div>
         </div>
       </div>
       <table class="tax-table" style="width:100%;border-collapse:collapse;font-size:0.85rem">
         <thead>
           <tr>
-            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)">Month</th>
-            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)">Total Invoiced</th>
-            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)">Tax Collected</th>
-            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)">Net Amount</th>
+            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)" data-i18n="reports.month_col">${t('reports.month_col')}</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)" data-i18n="reports.total_invoiced_col">${t('reports.total_invoiced_col')}</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)" data-i18n="reports.tax_collected_col">${t('reports.tax_collected_col')}</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)" data-i18n="reports.net_amount_col">${t('reports.net_amount_col')}</th>
           </tr>
         </thead>
         <tbody>
@@ -503,7 +516,7 @@ export function renderTaxSummary(el: Element, invoices: Invoice[], year: number)
         </tbody>
         <tfoot>
           <tr class="totals-row" style="font-weight:600;border-top:2px solid var(--border)">
-            <td style="padding:6px 8px">Total</td>
+            <td style="padding:6px 8px" data-i18n="reports.total_row">${t('reports.total_row')}</td>
             <td style="text-align:right;padding:6px 8px">${escapeHtml(formatCurrency(totals.invoiced))}</td>
             <td style="text-align:right;padding:6px 8px">${escapeHtml(formatCurrency(totals.taxTotal))}</td>
             <td style="text-align:right;padding:6px 8px">${escapeHtml(formatCurrency(totals.net))}</td>
@@ -513,21 +526,24 @@ export function renderTaxSummary(el: Element, invoices: Invoice[], year: number)
     </div>`;
 
   // Toggle dropdown
-  const exportBtn = el.querySelector<HTMLButtonElement>('#export-tax-btn')!;
-  const exportMenu = el.querySelector<HTMLElement>('#export-tax-menu')!;
+  const exportWrap = el.querySelector<HTMLElement>('#export-tax-wrap')!;
+  const exportBtn  = el.querySelector<HTMLButtonElement>('#export-tax-btn')!;
 
   exportBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    exportMenu.style.display = exportMenu.style.display === 'none' ? 'block' : 'none';
+    const isOpen = exportWrap.classList.contains('open');
+    // Close others
+    document.querySelectorAll('.custom-select-wrap.open').forEach(el => el.classList.remove('open'));
+    if (!isOpen) exportWrap.classList.add('open');
   });
 
-  document.addEventListener('click', () => { exportMenu.style.display = 'none'; }, { once: true });
+  document.addEventListener('click', () => { exportWrap.classList.remove('open'); });
 
   // ─── CSV export ───────────────────────────────────────────────────────────
   el.querySelector<HTMLButtonElement>('#export-csv-btn')!.addEventListener('click', async () => {
-    exportMenu.style.display = 'none';
+    exportWrap.classList.remove('open');
     const summary = buildTaxSummary(invoices, year);
-    const headers = ['Month', 'Total Invoiced', 'Tax Collected', 'Net Amount'];
+    const headers = [t('reports.month_col'), t('reports.total_invoiced_col'), t('reports.tax_collected_col'), t('reports.net_amount_col')];
     const dataRows: string[][] = summary.rows.map(row => [
       row.label,
       formatCurrency(row.totalInvoiced),
@@ -535,7 +551,7 @@ export function renderTaxSummary(el: Element, invoices: Invoice[], year: number)
       formatCurrency(row.net),
     ]);
     dataRows.push([
-      'Total',
+      t('reports.total_row'),
       formatCurrency(summary.annualTotalInvoiced),
       formatCurrency(summary.annualTaxTotal),
       formatCurrency(summary.annualNet),
@@ -549,7 +565,7 @@ export function renderTaxSummary(el: Element, invoices: Invoice[], year: number)
 
   // ─── PDF export ───────────────────────────────────────────────────────────
   el.querySelector<HTMLButtonElement>('#export-pdf-btn')!.addEventListener('click', async () => {
-    exportMenu.style.display = 'none';
+    exportWrap.classList.remove('open');
     const summary = buildTaxSummary(invoices, year);
     const html = buildTaxReportHtml(summary);
     const defaultName = `tax-report-${year}.pdf`;
@@ -563,17 +579,17 @@ export function renderTaxSummary(el: Element, invoices: Invoice[], year: number)
 function handleExportResult(result: import('../../shared/types').ApiResponse<string>): void {
   if (!result.success) {
     if (result.error === 'Cancelled') return;
-    showToast(`Export failed: ${result.error ?? 'Unknown error'}`, 'error');
+    showToast(`${t('common.error')}: ${result.error ?? 'Unknown error'}`, 'error');
     return;
   }
 
   const filePath = result.data;
   if (filePath) {
-    showToastWithAction('Export successful.', 'success', 'Show in Folder', () => {
+    showToastWithAction(t('reports.export_success'), 'success', t('reports.show_in_folder'), () => {
       window.finchAPI.shell.showItemInFolder(filePath);
     });
   } else {
-    showToast('Export successful.', 'success');
+    showToast(t('reports.export_success'), 'success');
   }
 }
 
@@ -663,6 +679,7 @@ function buildTaxReportHtml(summary: import('../../shared/types').TaxSummary): s
 
 export function renderProfitLoss(el: Element, invoices: Invoice[], expenses: Expense[], year: number): void {
   const revenueByMonth = groupByMonth(invoices, year);
+  const MONTH_LABELS = getMonthLabels();
 
   // Sum expenses per month for the selected year
   const expensesByMonth = new Array<number>(12).fill(0);
@@ -698,20 +715,20 @@ export function renderProfitLoss(el: Element, invoices: Invoice[], expenses: Exp
 
   el.innerHTML = `
     <div class="metric-card" style="padding:16px">
-      <h3 style="margin:0 0 12px;font-size:0.9rem;font-weight:600">Profit / Loss — ${year}</h3>
+      <h3 style="margin:0 0 12px;font-size:0.9rem;font-weight:600" data-i18n="reports.profit_loss_title" data-i18n-vars='{"year":"${year}"}'>${t('reports.profit_loss_title', { year: String(year) })}</h3>
       <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
         <thead>
           <tr>
-            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)">Month</th>
-            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)">Revenue</th>
-            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)">Expenses</th>
-            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)">Net</th>
+            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)" data-i18n="reports.month_col">${t('reports.month_col')}</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)" data-i18n="reports.revenue_col">${t('reports.revenue_col')}</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)" data-i18n="reports.expenses_col">${t('reports.expenses_col')}</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)" data-i18n="reports.net_col">${t('reports.net_col')}</th>
           </tr>
         </thead>
         <tbody>${monthRows}</tbody>
         <tfoot>
           <tr style="font-weight:600;border-top:2px solid var(--border)">
-            <td style="padding:6px 8px">Total</td>
+            <td style="padding:6px 8px" data-i18n="reports.total_row">${t('reports.total_row')}</td>
             <td style="text-align:right;padding:6px 8px">${escapeHtml(formatCurrency(totalRevenue))}</td>
             <td style="text-align:right;padding:6px 8px">${escapeHtml(formatCurrency(totalExpenses))}</td>
             <td style="text-align:right;padding:6px 8px;${totalNetColor}">${escapeHtml(formatCurrency(totalNet))}</td>

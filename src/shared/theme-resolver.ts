@@ -16,6 +16,23 @@ export function resolveTheme(
 ): 'light' | 'dark' {
   if (theme === 'dark') return 'dark';
   if (theme === 'system') return systemIsDark ? 'dark' : 'light';
-  // 'light' or any unknown value falls back to 'light'
   return 'light';
+}
+
+/**
+ * Resolves the invoice theme setting to a concrete 'light' | 'dark' value.
+ *
+ * @param invoiceTheme The invoice theme setting ('light' | 'dark' | 'auto')
+ * @param appTheme     The app theme setting ('light' | 'dark' | 'system')
+ * @param systemIsDark Whether the OS prefers dark mode
+ */
+export function resolveInvoiceTheme(
+  invoiceTheme: AppSettings['invoiceTheme'],
+  appTheme: AppSettings['theme'],
+  systemIsDark: boolean,
+): 'light' | 'dark' {
+  if (invoiceTheme === 'light') return 'light';
+  if (invoiceTheme === 'dark') return 'dark';
+  // 'auto' (follow app theme)
+  return resolveTheme(appTheme, systemIsDark);
 }

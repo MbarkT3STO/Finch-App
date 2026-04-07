@@ -140,6 +140,8 @@ export interface AppSettings {
   autoSaveInterval: number;
   invoicePrefix: string;
   nextInvoiceNumber: number;
+  language: 'en' | 'fr' | 'ar';
+  invoiceTheme?: 'light' | 'dark' | 'auto';
   businessDetails: BusinessDetails;
   defaultInvoiceTemplate?: 'classic' | 'modern' | 'minimal';
   defaultFooterText?: string;

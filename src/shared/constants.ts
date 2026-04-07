@@ -85,6 +85,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoSaveInterval: 30,
   invoicePrefix: 'INV',
   nextInvoiceNumber: 1,
+  language: 'en',
+  invoiceTheme: 'auto',
   businessDetails: { ...DEFAULT_BUSINESS },
   defaultInvoiceTemplate: 'classic',
   defaultFooterText: '',

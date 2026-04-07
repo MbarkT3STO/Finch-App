@@ -115,3 +115,79 @@ export function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+export interface CustomSelectOption {
+  label: string;
+  value: string;
+}
+
+export function createCustomSelect(container: HTMLElement, options: {
+  options: CustomSelectOption[];
+  initialValue?: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+  id?: string;
+}): void {
+  const { options: list, initialValue, onChange, placeholder = 'Select...', id } = options;
+  let currentValue = initialValue ?? '';
+  const currentLabel = list.find(o => o.value === currentValue)?.label ?? placeholder;
+
+  container.innerHTML = `
+    <div class="custom-select-wrap" ${id ? `id="${id}-wrap"` : ''}>
+      <button class="custom-select-trigger" type="button" ${id ? `id="${id}-trigger"` : ''}>
+        <span class="trigger-label">${escapeHtml(currentLabel)}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="custom-select-menu">
+        ${list.map(opt => `
+          <div class="custom-select-option ${opt.value === currentValue ? 'selected' : ''}" data-value="${escapeHtml(opt.value)}">
+            <span>${escapeHtml(opt.label)}</span>
+            <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  const wrap = container.querySelector('.custom-select-wrap') as HTMLElement;
+  const trigger = wrap.querySelector('.custom-select-trigger') as HTMLButtonElement;
+  const menu = wrap.querySelector('.custom-select-menu') as HTMLElement;
+  const triggerLabel = wrap.querySelector('.trigger-label') as HTMLElement;
+
+  const toggle = (force?: boolean) => {
+    const isOpen = typeof force === 'boolean' ? force : !wrap.classList.contains('open');
+    if (isOpen) {
+      // Close others
+      document.querySelectorAll('.custom-select-wrap.open').forEach(el => {
+        if (el !== wrap) el.classList.remove('open');
+      });
+      wrap.classList.add('open');
+    } else {
+      wrap.classList.remove('open');
+    }
+  };
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggle();
+  });
+
+  wrap.querySelectorAll('.custom-select-option').forEach(optEl => {
+    optEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = (optEl as HTMLElement).dataset.value!;
+      const label = (optEl as HTMLElement).querySelector('span')!.textContent!;
+
+      currentValue = val;
+      triggerLabel.textContent = label;
+
+      wrap.querySelectorAll('.custom-select-option').forEach(el => el.classList.remove('selected'));
+      optEl.classList.add('selected');
+
+      toggle(false);
+      if (onChange) onChange(val);
+    });
+  });
+
+  document.addEventListener('click', () => toggle(false));
+}

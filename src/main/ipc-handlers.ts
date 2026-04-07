@@ -8,7 +8,7 @@ import * as auth from '../services/auth-service';
 import * as data from '../services/data-service';
 import * as storage from '../services/storage-service';
 import { generateInvoiceHtml } from './pdf-template';
-import { resolveTheme } from '../shared/theme-resolver';
+import { resolveTheme, resolveInvoiceTheme } from '../shared/theme-resolver';
 import * as expenseStore from '../services/expense-store';
 import {
   createMainWindow,
@@ -121,7 +121,7 @@ export function registerIpcHandlers(): void {
       const ir = data.getInvoice(s.userId, d.invoiceId);
       if (!ir.success || !ir.data) return { success: false, error: 'Invoice not found' };
       const settings = storage.getSettings(s.userId);
-      const resolvedTheme = resolveTheme(settings.theme, nativeTheme.shouldUseDarkColors);
+      const resolvedTheme = resolveInvoiceTheme(settings.invoiceTheme || 'auto', settings.theme, nativeTheme.shouldUseDarkColors);
       const html = generateInvoiceHtml(ir.data, settings, resolvedTheme);
       const { filePath } = await dialog.showSaveDialog({
         title: 'Save Invoice PDF',
@@ -145,7 +145,7 @@ export function registerIpcHandlers(): void {
     try {
       const s = session();
       const settings = storage.getSettings(s.userId);
-      const resolvedTheme = resolveTheme(settings.theme, nativeTheme.shouldUseDarkColors);
+      const resolvedTheme = resolveInvoiceTheme(settings.invoiceTheme || 'auto', settings.theme, nativeTheme.shouldUseDarkColors);
       const { filePaths } = await dialog.showOpenDialog({ properties: ['openDirectory'], title: 'Select folder for PDFs' });
       if (!filePaths?.length) return { success: false, error: 'Cancelled' };
       const outDir = filePaths[0];

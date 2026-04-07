@@ -1,6 +1,7 @@
 import { Invoice, InvoiceStatus } from '../../shared/types';
 import { formatCurrency, formatDate, debounce } from '../../shared/utils';
 import { showToast, confirm, renderSkeleton, escapeHtml } from './ui-utils';
+import { t } from './i18n';
 
 let allInvoices: Invoice[] = [];
 let filteredInvoices: Invoice[] = [];
@@ -15,11 +16,11 @@ export function initInvoiceList(container: HTMLElement, nav: (r: string) => void
   container.innerHTML = `
   <div class="view-container">
     <div class="page-header">
-      <h1>Invoices</h1>
+      <h1 data-i18n="invoices.title">${t('invoices.title')}</h1>
       <div class="page-actions">
         <button class="btn btn-primary" id="new-invoice-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-          <span class="btn-label">New Invoice</span>
+          <span class="btn-label" data-i18n="invoices.new_invoice">${t('invoices.new_invoice')}</span>
         </button>
       </div>
     </div>
@@ -27,14 +28,14 @@ export function initInvoiceList(container: HTMLElement, nav: (r: string) => void
     <div class="toolbar">
       <div class="search-wrap">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input class="search-input" id="invoice-search" placeholder="Search invoices…" type="search">
+        <input class="search-input" id="invoice-search" placeholder="${t('invoices.search_placeholder')}" data-i18n-placeholder="invoices.search_placeholder" type="search">
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="filter-chip active" data-status="all">All</button>
-        <button class="filter-chip" data-status="draft">Draft</button>
-        <button class="filter-chip" data-status="unpaid">Unpaid</button>
-        <button class="filter-chip" data-status="paid">Paid</button>
-        <button class="filter-chip" data-status="overdue">Overdue</button>
+        <button class="filter-chip active" data-status="all" data-i18n="invoices.filter_all">${t('invoices.filter_all')}</button>
+        <button class="filter-chip" data-status="draft" data-i18n="status.draft">${t('status.draft')}</button>
+        <button class="filter-chip" data-status="unpaid" data-i18n="status.unpaid">${t('status.unpaid')}</button>
+        <button class="filter-chip" data-status="paid" data-i18n="status.paid">${t('status.paid')}</button>
+        <button class="filter-chip" data-status="overdue" data-i18n="status.overdue">${t('status.overdue')}</button>
       </div>
     </div>
 
@@ -44,13 +45,13 @@ export function initInvoiceList(container: HTMLElement, nav: (r: string) => void
           <table class="data-table" id="invoice-table">
             <thead>
               <tr>
-                <th class="sortable" data-sort="number" style="width:140px"># Number</th>
-                <th class="sortable" data-sort="billTo">Client</th>
-                <th class="sortable" data-sort="issueDate">Issue Date</th>
-                <th class="sortable" data-sort="dueDate">Due Date</th>
-                <th class="sortable col-amount" data-sort="grandTotal">Amount</th>
-                <th>Status</th>
-                <th class="col-actions" style="width:130px">Actions</th>
+                <th class="sortable" data-sort="number" style="width:140px" data-i18n="invoices.num_col">${t('invoices.num_col')}</th>
+                <th class="sortable" data-sort="billTo" data-i18n="invoices.client_col">${t('invoices.client_col')}</th>
+                <th class="sortable" data-sort="issueDate" data-i18n="invoices.date_col">${t('invoices.date_col')}</th>
+                <th class="sortable" data-sort="dueDate" data-i18n="invoices.due_col">${t('invoices.due_col')}</th>
+                <th class="sortable col-amount" data-sort="grandTotal" data-i18n="invoices.amount_col">${t('invoices.amount_col')}</th>
+                <th data-i18n="invoices.status_col">${t('invoices.status_col')}</th>
+                <th class="col-actions" style="width:130px" data-i18n="invoices.actions_col">${t('invoices.actions_col')}</th>
               </tr>
             </thead>
             <tbody id="invoice-tbody"></tbody>
@@ -98,7 +99,7 @@ async function loadInvoices(): Promise<void> {
   const tbody = document.getElementById('invoice-tbody')!;
   renderSkeleton(tbody, 6);
   const result = await window.finchAPI.invoice.getAll();
-  if (!result.success) { showToast(result.error ?? 'Failed to load', 'error'); return; }
+  if (!result.success) { showToast(result.error ?? t('common.error'), 'error'); return; }
   allInvoices = result.data ?? [];
   applyFilter();
 }
@@ -132,7 +133,7 @@ function renderTable(): void {
       <tr><td colspan="7">
         <div class="empty-state">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
-          <p>No invoices found. Create your first invoice to get started.</p>
+          <p data-i18n="invoices.empty_state">${t('invoices.empty_state')}</p>
         </div>
       </td></tr>`;
     return;
@@ -149,22 +150,22 @@ function renderTable(): void {
       <td>${formatDate(inv.issueDate)}</td>
       <td>${inv.dueDate ? formatDate(inv.dueDate) : '—'}</td>
       <td class="col-amount">${formatCurrency(inv.grandTotal, sym)}</td>
-      <td><span class="badge badge-${inv.status}">${inv.status}</span></td>
+      <td><span class="badge badge-${inv.status}">${t(`status.${inv.status}`)}</span></td>
       <td class="col-actions">
         <div class="row-actions">
-          <button class="btn btn-ghost btn-icon btn-sm action-edit" title="Edit" data-id="${inv.id}">
+          <button class="btn btn-ghost btn-icon btn-sm action-edit" title="${t('invoices.edit_tip')}" data-i18n-title="invoices.edit_tip" data-id="${inv.id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
-          <button class="btn btn-ghost btn-icon btn-sm action-pdf" title="Export PDF" data-id="${inv.id}">
+          <button class="btn btn-ghost btn-icon btn-sm action-pdf" title="${t('invoices.export_tip')}" data-i18n-title="invoices.export_tip" data-id="${inv.id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           </button>
-          <button class="btn btn-ghost btn-icon btn-sm action-dupe" title="Duplicate" data-id="${inv.id}">
+          <button class="btn btn-ghost btn-icon btn-sm action-dupe" title="${t('invoices.dupe_tip')}" data-i18n-title="invoices.dupe_tip" data-id="${inv.id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
           </button>
-          ${inv.status !== 'paid' ? `<button class="btn btn-ghost btn-icon btn-sm action-paid" title="Mark Paid" data-id="${inv.id}" style="color:var(--success)">
+          ${inv.status !== 'paid' ? `<button class="btn btn-ghost btn-icon btn-sm action-paid" title="${t('invoices.paid_tip')}" data-i18n-title="invoices.paid_tip" data-id="${inv.id}" style="color:var(--success)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
           </button>` : ''}
-          <button class="btn btn-ghost btn-icon btn-sm action-del" title="Delete" data-id="${inv.id}" style="color:var(--danger)">
+          <button class="btn btn-ghost btn-icon btn-sm action-del" title="${t('invoices.del_tip')}" data-i18n-title="invoices.del_tip" data-id="${inv.id}" style="color:var(--danger)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
           </button>
         </div>
@@ -188,10 +189,10 @@ function renderTable(): void {
   document.querySelectorAll<HTMLButtonElement>('.action-pdf').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      showToast('Generating PDF…', 'info');
+      showToast(t('invoices.gen_pdf_toast'), 'info');
       const r = await window.finchAPI.pdf.export({ invoiceId: btn.dataset.id! });
-      if (r.success) { showToast('PDF saved!', 'success'); window.finchAPI.shell.showItemInFolder(r.data!); }
-      else showToast(r.error ?? 'Export failed', 'error');
+      if (r.success) { showToast(t('invoices.pdf_saved_toast'), 'success'); window.finchAPI.shell.showItemInFolder(r.data!); }
+      else showToast(r.error ?? t('invoices.export_failed'), 'error');
     });
   });
 
@@ -199,8 +200,8 @@ function renderTable(): void {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const r = await window.finchAPI.invoice.duplicate(btn.dataset.id!);
-      if (r.success) { showToast('Invoice duplicated', 'success'); navigate(`#/invoice/edit/${r.data!.id}`); }
-      else showToast(r.error ?? 'Failed', 'error');
+      if (r.success) { showToast(t('invoices.duped_toast'), 'success'); navigate(`#/invoice/edit/${r.data!.id}`); }
+      else showToast(r.error ?? t('common.error'), 'error');
     });
   });
 
@@ -208,19 +209,19 @@ function renderTable(): void {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const r = await window.finchAPI.invoice.updateStatus({ id: btn.dataset.id!, status: 'paid' });
-      if (r.success) { showToast('Marked as paid', 'success'); loadInvoices(); }
-      else showToast(r.error ?? 'Failed', 'error');
+      if (r.success) { showToast(t('invoices.marked_paid_toast'), 'success'); loadInvoices(); }
+      else showToast(r.error ?? t('common.error'), 'error');
     });
   });
 
   document.querySelectorAll<HTMLButtonElement>('.action-del').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const ok = await confirm('Delete this invoice? This cannot be undone.', 'Delete Invoice');
+      const ok = await confirm(t('invoices.del_confirm'), t('invoices.del_title'));
       if (!ok) return;
       const r = await window.finchAPI.invoice.delete(btn.dataset.id!);
-      if (r.success) { showToast('Invoice deleted', 'success'); loadInvoices(); }
-      else showToast(r.error ?? 'Failed', 'error');
+      if (r.success) { showToast(t('invoices.deleted_toast'), 'success'); loadInvoices(); }
+      else showToast(r.error ?? t('common.error'), 'error');
     });
   });
 }

@@ -5,6 +5,7 @@ import { initClientManager } from './client-manager';
 import { initReports } from './reports';
 import { initSettings } from './settings';
 import { showToast } from './ui-utils';
+import { setLanguage } from './i18n';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let currentRoute = '';
@@ -41,10 +42,11 @@ async function boot(): Promise<void> {
     item.addEventListener('click', () => navigate(item.dataset.route!));
   });
 
-  // Theme init
+  // Settings init (Theme & Language)
   const settingsR = await window.finchAPI.settings.get();
   if (settingsR.success && settingsR.data) {
     applyTheme(settingsR.data.theme);
+    setLanguage(settingsR.data.language || 'en');
   }
 
   // Router
