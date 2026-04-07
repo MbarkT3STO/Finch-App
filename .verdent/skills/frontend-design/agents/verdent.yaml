@@ -1,0 +1,6 @@
+interface:
+  display_name: 'Frontend Design'
+  short_description: 'Create production-grade, well-designed frontend UIs and web experiences.'
+  icon_dark: './assets/icon-dark.png'
+  icon_light: './assets/icon-light.png'
+  default_prompt: 'Create a production-grade frontend UI with high design quality.'
