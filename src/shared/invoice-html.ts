@@ -74,9 +74,25 @@ export function renderFooterTextHtml(footerText: string | undefined, minimal = f
 </div>`;
 }
 
+// ─── Dark Mode CSS Helpers ────────────────────────────────────────────────────
+
+function darkModeOverrides(): string {
+  return `
+body{background:#1a1a2e!important;color:#e5e7eb!important}
+.dates{background:#2d2d44!important}
+.lbl,.dl{color:#9ca3af!important}
+.tl{color:#9ca3af!important}
+.notes p,.footer-text p{color:#d1d5db!important}
+.footer{color:#6b7280!important}
+table thead th{color:#9ca3af!important;border-bottom-color:#374151!important}
+table tbody td{border-bottom-color:#374151!important;color:#e5e7eb!important}
+.notes,.footer-text{border-top-color:#374151!important}
+`;
+}
+
 // ─── Classic Template ─────────────────────────────────────────────────────────
 
-export function renderClassicHtml(invoice: Partial<Invoice>, _settings: AppSettings): string {
+export function renderClassicHtml(invoice: Partial<Invoice>, _settings: AppSettings, resolvedTheme?: 'light' | 'dark'): string {
   const sym = invoice.currencySymbol || '$';
   const statusColor: Record<string, string> = {
     draft: '#6B7280',
@@ -135,6 +151,7 @@ tbody tr:last-child td{border-bottom:none}
 .footer-text p{color:#4B5563;line-height:1.6;white-space:pre-wrap}
 .footer{margin-top:40px;text-align:center;font-size:11px;color:#9CA3AF}
 @media print{body{padding:24px}}
+${resolvedTheme === 'dark' ? darkModeOverrides() : ''}
 </style></head><body>
 <div class="hd">
   <div>
@@ -181,7 +198,7 @@ ${renderFooterTextHtml(invoice.footerText)}
 
 // ─── Modern Template ──────────────────────────────────────────────────────────
 
-export function renderModernHtml(invoice: Partial<Invoice>, _settings: AppSettings): string {
+export function renderModernHtml(invoice: Partial<Invoice>, _settings: AppSettings, resolvedTheme?: 'light' | 'dark'): string {
   const sym = invoice.currencySymbol || '$';
   const statusColor: Record<string, string> = {
     draft: '#6B7280',
@@ -241,6 +258,19 @@ tbody td{padding:10px;color:#1A1A2E}
 .footer-text p{color:#4B5563;line-height:1.6;white-space:pre-wrap}
 .footer{margin-top:40px;text-align:center;font-size:11px;color:#9CA3AF}
 @media print{.mod-header{padding:24px 24px}.body-pad{padding:24px}}
+${resolvedTheme === 'dark' ? `
+body{background:#1a1a2e!important;color:#e5e7eb!important}
+.mod-header{background:#f3f4f6!important}
+.mod-header .brand{color:#1a1a2e!important}
+.mod-header .inv-num{color:#1a1a2e!important}
+.lbl,.dl{color:#9ca3af!important}
+.tl{color:#9ca3af!important}
+.notes p,.footer-text p{color:#d1d5db!important}
+.footer{color:#6b7280!important}
+table thead th{color:#9ca3af!important;border-bottom-color:#374151!important}
+table tbody td{border-bottom-color:#374151!important;color:#e5e7eb!important}
+.notes,.footer-text{border-top-color:#374151!important}
+` : ''}
 </style></head><body>
 <div class="mod-header">
   <div>
@@ -289,7 +319,7 @@ ${renderFooterTextHtml(invoice.footerText)}
 
 // ─── Minimal Template ─────────────────────────────────────────────────────────
 
-export function renderMinimalHtml(invoice: Partial<Invoice>, _settings: AppSettings): string {
+export function renderMinimalHtml(invoice: Partial<Invoice>, _settings: AppSettings, resolvedTheme?: 'light' | 'dark'): string {
   const sym = invoice.currencySymbol || '$';
 
   const bf = invoice.billFrom ?? ({} as Partial<Invoice['billFrom']>);
@@ -340,6 +370,7 @@ tbody tr:last-child td{border-bottom:none}
 .footer-text p{color:#6B7280;line-height:1.6;white-space:pre-wrap}
 .footer{margin-top:40px;text-align:center;font-size:11px;color:#6B7280}
 @media print{body{padding:24px}}
+${resolvedTheme === 'dark' ? darkModeOverrides() : ''}
 </style></head><body>
 <div class="hd">
   <div>
@@ -386,9 +417,9 @@ ${renderFooterTextHtml(invoice.footerText, true)}
 
 // ─── Dispatcher ───────────────────────────────────────────────────────────────
 
-export function renderInvoiceHtml(invoice: Partial<Invoice>, settings: AppSettings): string {
+export function renderInvoiceHtml(invoice: Partial<Invoice>, settings: AppSettings, resolvedTheme?: 'light' | 'dark'): string {
   const tpl = invoice.template ?? 'classic';
-  if (tpl === 'modern') return renderModernHtml(invoice, settings);
-  if (tpl === 'minimal') return renderMinimalHtml(invoice, settings);
-  return renderClassicHtml(invoice, settings);
+  if (tpl === 'modern') return renderModernHtml(invoice, settings, resolvedTheme);
+  if (tpl === 'minimal') return renderMinimalHtml(invoice, settings, resolvedTheme);
+  return renderClassicHtml(invoice, settings, resolvedTheme);
 }

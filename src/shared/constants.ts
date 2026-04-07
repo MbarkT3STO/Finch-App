@@ -38,6 +38,16 @@ export const IPC_CHANNELS = {
   // CSV
   CSV_SAVE: 'csv:save',
 
+  // Expense
+  EXPENSE_CREATE: 'expense:create',
+  EXPENSE_UPDATE: 'expense:update',
+  EXPENSE_DELETE: 'expense:delete',
+  EXPENSE_GET_ALL: 'expense:get-all',
+
+  // Report
+  REPORT_EXPORT_CSV: 'report:export-csv',
+  REPORT_EXPORT_PDF: 'report:export-pdf',
+
   // Shell
   SHELL_OPEN_EXTERNAL: 'shell:open-external',
   SHELL_SHOW_IN_FOLDER: 'shell:show-in-folder',

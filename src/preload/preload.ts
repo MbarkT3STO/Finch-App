@@ -42,6 +42,16 @@ contextBridge.exposeInMainWorld('finchAPI', {
     save: (data: { csv: string; defaultName: string }) =>
       ipcRenderer.invoke(IPC_CHANNELS.CSV_SAVE, data),
   },
+  expense: {
+    create: (d: unknown) => ipcRenderer.invoke(IPC_CHANNELS.EXPENSE_CREATE, d),
+    update: (d: unknown) => ipcRenderer.invoke(IPC_CHANNELS.EXPENSE_UPDATE, d),
+    delete: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.EXPENSE_DELETE, id),
+    getAll: () => ipcRenderer.invoke(IPC_CHANNELS.EXPENSE_GET_ALL),
+  },
+  report: {
+    exportCsv: (d: unknown) => ipcRenderer.invoke(IPC_CHANNELS.REPORT_EXPORT_CSV, d),
+    exportPdf: (d: unknown) => ipcRenderer.invoke(IPC_CHANNELS.REPORT_EXPORT_PDF, d),
+  },
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, url),
     showItemInFolder: (p: string) => ipcRenderer.invoke(IPC_CHANNELS.SHELL_SHOW_IN_FOLDER, p),

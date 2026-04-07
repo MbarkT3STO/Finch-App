@@ -288,3 +288,22 @@ describe('P10: Preview and export produce identical HTML', () => {
     );
   });
 });
+
+// ─── P10 (reporting-analytics): Modern template dark header inversion ─────────
+// Feature: reporting-analytics, Property 10: Modern template dark header inversion
+
+describe('P10 (reporting-analytics): Modern template dark header inversion', () => {
+  it('modern template with resolvedTheme=dark does not use #1A1A2E as header background — Validates: Requirements 4.11', () => {
+    fc.assert(
+      fc.property(invoiceArb, settingsArb, (invoice, settings) => {
+        const html = renderModernHtml({ ...invoice, template: 'modern' }, settings, 'dark');
+        // Extract the mod-header element content
+        const headerMatch = html.match(/<div class="mod-header"[\s\S]*?<\/div>\s*<\/div>/);
+        const headerSection = headerMatch ? headerMatch[0] : '';
+        // The header should NOT use the dark background #1A1A2E (case-insensitive)
+        expect(headerSection.toLowerCase()).not.toContain('#1a1a2e');
+      }),
+      { numRuns: 100 },
+    );
+  });
+});

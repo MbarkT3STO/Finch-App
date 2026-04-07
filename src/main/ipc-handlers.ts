@@ -1,4 +1,4 @@
-import { ipcMain, ipcRenderer as _ir, shell, dialog, BrowserWindow, app } from 'electron';
+import { ipcMain, ipcRenderer as _ir, shell, dialog, BrowserWindow, app, nativeTheme } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import archiver from 'archiver';
@@ -8,6 +8,8 @@ import * as auth from '../services/auth-service';
 import * as data from '../services/data-service';
 import * as storage from '../services/storage-service';
 import { generateInvoiceHtml } from './pdf-template';
+import { resolveTheme } from '../shared/theme-resolver';
+import * as expenseStore from '../services/expense-store';
 import {
   createMainWindow,
   createLoginWindow,
@@ -119,7 +121,8 @@ export function registerIpcHandlers(): void {
       const ir = data.getInvoice(s.userId, d.invoiceId);
       if (!ir.success || !ir.data) return { success: false, error: 'Invoice not found' };
       const settings = storage.getSettings(s.userId);
-      const html = generateInvoiceHtml(ir.data, settings);
+      const resolvedTheme = resolveTheme(settings.theme, nativeTheme.shouldUseDarkColors);
+      const html = generateInvoiceHtml(ir.data, settings, resolvedTheme);
       const { filePath } = await dialog.showSaveDialog({
         title: 'Save Invoice PDF',
         defaultPath: `${ir.data.number || 'invoice'}.pdf`,
@@ -142,13 +145,14 @@ export function registerIpcHandlers(): void {
     try {
       const s = session();
       const settings = storage.getSettings(s.userId);
+      const resolvedTheme = resolveTheme(settings.theme, nativeTheme.shouldUseDarkColors);
       const { filePaths } = await dialog.showOpenDialog({ properties: ['openDirectory'], title: 'Select folder for PDFs' });
       if (!filePaths?.length) return { success: false, error: 'Cancelled' };
       const outDir = filePaths[0];
       for (const id of (d.invoiceIds as string[])) {
         const ir = data.getInvoice(s.userId, id);
         if (!ir.success || !ir.data) continue;
-        const html = generateInvoiceHtml(ir.data, settings);
+        const html = generateInvoiceHtml(ir.data, settings, resolvedTheme);
         const pw = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: false, contextIsolation: true } });
         await pw.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
         const buf = await pw.webContents.printToPDF({ printBackground: true, pageSize: 'A4' });
@@ -228,6 +232,88 @@ export function registerIpcHandlers(): void {
       if (filePath) {
         try { await fs.promises.unlink(filePath); } catch { /* ignore */ }
       }
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // ─── Expense ───────────────────────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.EXPENSE_CREATE, async (_e, d) => {
+    try {
+      return expenseStore.createExpense(session().userId, d);
+    } catch (err) {
+      log.error('expense:create:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.EXPENSE_UPDATE, async (_e, d) => {
+    try {
+      return expenseStore.updateExpense(session().userId, d.id, d.expense);
+    } catch (err) {
+      log.error('expense:update:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.EXPENSE_DELETE, async (_e, id: string) => {
+    try {
+      return expenseStore.deleteExpense(session().userId, id);
+    } catch (err) {
+      log.error('expense:delete:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.EXPENSE_GET_ALL, async () => {
+    try {
+      return expenseStore.getAllExpenses(session().userId);
+    } catch (err) {
+      log.error('expense:get-all:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // ─── Report ────────────────────────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.REPORT_EXPORT_CSV, async (_e, d: { csv: string; defaultName: string }) => {
+    let filePath: string | undefined;
+    try {
+      const result = await dialog.showSaveDialog({
+        title: 'Save CSV',
+        defaultPath: d.defaultName,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      });
+      if (result.canceled || !result.filePath) return { success: false, error: 'Cancelled' };
+      filePath = result.filePath;
+      await fs.promises.writeFile(filePath, d.csv, 'utf-8');
+      return { success: true, data: filePath };
+    } catch (err) {
+      if (filePath) {
+        try { await fs.promises.unlink(filePath); } catch { /* ignore */ }
+      }
+      log.error('report:export-csv:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REPORT_EXPORT_PDF, async (_e, d: { html: string; defaultName: string }) => {
+    try {
+      const s = session();
+      const settings = storage.getSettings(s.userId);
+      const _resolvedTheme = resolveTheme(settings.theme, nativeTheme.shouldUseDarkColors);
+      const { filePath } = await dialog.showSaveDialog({
+        title: 'Save Report PDF',
+        defaultPath: d.defaultName,
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      });
+      if (!filePath) return { success: false, error: 'Cancelled' };
+      const pw = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: false, contextIsolation: true } });
+      await pw.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(d.html)}`);
+      const buf = await pw.webContents.printToPDF({ printBackground: true, pageSize: 'A4' });
+      pw.close();
+      fs.writeFileSync(filePath, buf);
+      return { success: true, data: filePath };
+    } catch (err) {
+      log.error('report:export-pdf:', err);
       return { success: false, error: String(err) };
     }
   });

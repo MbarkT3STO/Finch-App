@@ -96,6 +96,41 @@ export interface Invoice {
   footerText?: string;
 }
 
+// ─── Expense ──────────────────────────────────────────────────────────────────
+export interface Expense {
+  id: string;
+  userId: string;
+  date: string;          // ISO 8601 date (YYYY-MM-DD)
+  amount: number;        // >= 0
+  category: string;      // non-empty
+  description: string;   // non-empty
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ForecastPeriod = string; // "YYYY-MM"
+
+export interface ForecastResult {
+  period: ForecastPeriod;
+  amount: number;        // >= 0
+}
+
+export interface TaxSummaryRow {
+  month: number;         // 1-12
+  label: string;         // "Jan" … "Dec"
+  totalInvoiced: number;
+  taxTotal: number;
+  net: number;
+}
+
+export interface TaxSummary {
+  year: number;
+  rows: TaxSummaryRow[];
+  annualTotalInvoiced: number;
+  annualTaxTotal: number;
+  annualNet: number;
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 export interface AppSettings {
   taxRate: number;
@@ -157,6 +192,16 @@ export interface FinchAPI {
   };
   csv: {
     save(data: { csv: string; defaultName: string }): Promise<ApiResponse<string>>;
+  };
+  expense: {
+    create(data: Omit<Expense, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Expense>>;
+    update(data: { id: string; expense: Partial<Expense> }): Promise<ApiResponse<Expense>>;
+    delete(id: string): Promise<ApiResponse>;
+    getAll(): Promise<ApiResponse<Expense[]>>;
+  };
+  report: {
+    exportCsv(data: { csv: string; defaultName: string }): Promise<ApiResponse<string>>;
+    exportPdf(data: { html: string; defaultName: string }): Promise<ApiResponse<string>>;
   };
   shell: {
     openExternal(url: string): Promise<void>;
