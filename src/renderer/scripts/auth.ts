@@ -11,42 +11,42 @@ export function renderAuth(container: HTMLElement): void {
   container.innerHTML = `
   <div class="login-shell">
     <div class="login-brand" id="brand-panel">
-      <div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:32px">
-          <div class="logo-mark" style="width:36px;height:36px;border-radius:10px;background:#E8C547;display:flex;align-items:center;justify-content:center">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+      <div class="login-brand-content">
+        <div class="login-logo-wrap">
+          <div class="logo-mark">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
           </div>
-          <span style="font-size:1.25rem;font-weight:700;color:#E8C547;letter-spacing:-0.025em">Finch</span>
+          <span class="logo-text">Finch</span>
         </div>
-        <h1 style="color:#EEE8D5;font-size:1.875rem;margin-bottom:12px;line-height:1.2">Invoice smarter,<br>not harder.</h1>
-        <p style="color:rgba(238,232,213,0.65);font-size:0.9375rem;line-height:1.65;max-width:240px">Offline-first invoicing for freelancers and small businesses.</p>
+        <h1 class="login-title">Invoice smarter,<br>not harder.</h1>
+        <p class="login-subtitle">Offline-first invoicing for freelancers and small businesses.</p>
+        
+        <div class="login-features">
+          ${['Create professional invoices', 'Manage clients & history', 'Export to PDF instantly', 'Works completely offline'].map(f => `
+          <div class="login-feature-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+            <span>${escapeHtml(f)}</span>
+          </div>`).join('')}
+        </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:12px">
-        ${['Create professional invoices', 'Manage clients & history', 'Export to PDF instantly', 'Works completely offline'].map(f => `
-        <div style="display:flex;align-items:center;gap:10px;color:rgba(238,232,213,0.8);font-size:0.875rem">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8C547" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-          ${escapeHtml(f)}
-        </div>`).join('')}
-      </div>
-      <!-- decorative circle -->
-      <div style="position:absolute;bottom:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:rgba(232,197,71,0.08);pointer-events:none"></div>
+      <div class="login-bg-decoration"></div>
     </div>
 
-    <div class="login-form-panel" style="position:relative">
+    <div class="login-form-panel">
       <!-- Window controls -->
-      <div style="position:absolute;top:16px;right:16px;display:flex;gap:6px" class="no-drag">
-        <button class="win-btn close"    id="wc-close"    title="Close"></button>
+      <div class="login-win-controls">
         <button class="win-btn minimize" id="wc-minimize" title="Minimize"></button>
+        <button class="win-btn close"    id="wc-close"    title="Close"></button>
       </div>
 
       <div class="login-form-inner">
-        <div class="tab-bar">
-          <button class="tab-btn active" id="tab-login">Sign in</button>
-          <button class="tab-btn"        id="tab-register">Create account</button>
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-login">Sign in</button>
+          <button class="auth-tab"        id="tab-register">Create account</button>
         </div>
 
         <!-- Login form -->
-        <form id="login-form" style="display:flex;flex-direction:column;gap:14px">
+        <form id="login-form" class="auth-form">
           <div class="form-group">
             <label class="form-label required">Username</label>
             <input class="form-input" id="login-username" type="text" placeholder="Your username" autocomplete="username">
@@ -57,31 +57,31 @@ export function renderAuth(container: HTMLElement): void {
             <input class="form-input" id="login-password" type="password" placeholder="Your password" autocomplete="current-password">
             <span class="form-error"></span>
           </div>
-          <button type="submit" class="btn btn-primary btn-lg" id="login-btn" style="width:100%;margin-top:4px">
+          <button type="submit" class="btn btn-primary btn-lg" id="login-btn" style="width:100%;margin-top:8px">
             <span class="btn-label">Sign in</span>
           </button>
         </form>
 
         <!-- Register form (hidden) -->
-        <form id="register-form" style="display:none;flex-direction:column;gap:14px">
+        <form id="register-form" class="auth-form" style="display:none">
           <div class="form-group">
             <label class="form-label required">Username</label>
             <input class="form-input" id="reg-username" type="text" placeholder="Choose a username" autocomplete="username">
             <span class="form-error"></span>
           </div>
           <div class="form-group">
-            <label class="form-label">Email <span style="color:var(--text-tertiary);font-weight:400">(optional)</span></label>
+            <label class="form-label">Email <span class="label-optional">(optional)</span></label>
             <input class="form-input" id="reg-email" type="email" placeholder="you@example.com" autocomplete="email">
             <span class="form-error"></span>
           </div>
           <div class="form-group">
             <label class="form-label required">Password</label>
             <input class="form-input" id="reg-password" type="password" placeholder="Create a password" autocomplete="new-password">
-            <div class="strength-bar" style="margin-top:6px"><div class="strength-fill" id="strength-fill" style="width:0%;background:#DC2626"></div></div>
+            <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
             <span class="form-hint" id="strength-label">Choose a strong password</span>
             <span class="form-error"></span>
           </div>
-          <button type="submit" class="btn btn-primary btn-lg" id="register-btn" style="width:100%;margin-top:4px">
+          <button type="submit" class="btn btn-primary btn-lg" id="register-btn" style="width:100%;margin-top:8px">
             <span class="btn-label">Create account</span>
           </button>
         </form>

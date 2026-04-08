@@ -91,8 +91,8 @@ async function loadReports(content: HTMLElement): Promise<void> {
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px">
-        <div id="breakdown-section" class="metric-card" style="padding:16px"></div>
-        <div id="count-section" class="metric-card" style="padding:16px"></div>
+        <div id="breakdown-section" class="report-card"></div>
+        <div id="count-section" class="report-card"></div>
       </div>
 
       <div id="tax-summary-section" style="margin-bottom:28px"></div>
@@ -104,23 +104,36 @@ async function loadReports(content: HTMLElement): Promise<void> {
   const btnYearly = content.querySelector<HTMLButtonElement>('#btn-yearly')!;
   const canvas = content.querySelector<HTMLCanvasElement>('#revenue-chart')!;
 
-  function update(): void {
-    renderChart(canvas, userInvoices, selectedYear, viewMode);
-    renderBreakdown(content.querySelector('#breakdown-section')!, userInvoices, userId, selectedYear, viewMode);
-    renderCountSummary(content.querySelector('#count-section')!, userInvoices, userId, selectedYear, viewMode);
-    renderTaxSummary(content.querySelector('#tax-summary-section')!, userInvoices, selectedYear);
-    renderProfitLoss(content.querySelector('#profit-loss-section')!, userInvoices, expenses, selectedYear);
-    renderExpenseSection(content.querySelector('#expense-section')!, expenses, selectedYear);
-  }
+  const update = (): void => {
+    try {
+      const breakdownEl = content.querySelector('#breakdown-section');
+      const countEl = content.querySelector('#count-section');
+      const taxEl = content.querySelector('#tax-summary-section');
+      const plEl = content.querySelector('#profit-loss-section');
+      const expEl = content.querySelector('#expense-section');
 
-  createCustomSelect(content.querySelector('#year-select-container')!, {
-    options: years.map(y => ({ label: String(y), value: String(y) })),
-    initialValue: String(selectedYear),
-    onChange: (val) => {
-      selectedYear = parseInt(val, 10);
-      update();
+      if (canvas) renderChart(canvas, userInvoices, selectedYear, viewMode);
+      if (breakdownEl) renderBreakdown(breakdownEl, userInvoices, userId, selectedYear, viewMode);
+      if (countEl) renderCountSummary(countEl, userInvoices, userId, selectedYear, viewMode);
+      if (taxEl) renderTaxSummary(taxEl, userInvoices, selectedYear);
+      if (plEl) renderProfitLoss(plEl, userInvoices, expenses, selectedYear);
+      if (expEl) renderExpenseSection(expEl, expenses, selectedYear);
+    } catch (err) {
+      console.error('Reports update failed:', err);
     }
-  });
+  };
+
+  const yearSelect = content.querySelector('#year-select-container');
+  if (yearSelect) {
+    createCustomSelect(yearSelect as HTMLElement, {
+      options: years.map(y => ({ label: String(y), value: String(y) })),
+      initialValue: String(selectedYear),
+      onChange: (val) => {
+        selectedYear = parseInt(val, 10);
+        update();
+      }
+    });
+  }
 
   btnMonthly.addEventListener('click', () => {
     viewMode = 'monthly';
@@ -143,7 +156,7 @@ async function loadReports(content: HTMLElement): Promise<void> {
     const editing = editingExpenseId ? expList.find(e => e.id === editingExpenseId) : null;
 
     el.innerHTML = `
-      <div class="metric-card" style="padding:20px 24px">
+      <div class="report-card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <h3 style="margin:0;font-size:0.9rem;font-weight:600" data-i18n="reports.expenses_title" data-i18n-vars='{"year":"${year}"}'>${t('reports.expenses_title', { year: String(year) })}</h3>
         </div>
@@ -290,10 +303,16 @@ async function loadReports(content: HTMLElement): Promise<void> {
     });
   }
 
+  // Initial update
   update();
+  setTimeout(update, 100);
 }
 
 // ─── Chart rendering (with forecast bars) ────────────────────────────────────
+
+function getCSSVar(name: string, fallback: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
 
 function renderChart(
   canvas: HTMLCanvasElement,
@@ -349,7 +368,7 @@ function renderChart(
   const barW = Math.max(4, (chartW - gap * (totalBars - 1)) / totalBars);
 
   // Draw axes
-  ctx.strokeStyle = 'rgba(128,128,128,0.3)';
+  ctx.strokeStyle = getCSSVar('--border', 'rgba(128,128,128,0.3)');
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(PADDING.left, PADDING.top);
@@ -358,7 +377,7 @@ function renderChart(
   ctx.stroke();
 
   // Draw historical bars
-  ctx.fillStyle = 'var(--accent, #6366f1)';
+  ctx.fillStyle = getCSSVar('--accent', '#6366f1');
   values.forEach((val, i) => {
     const barH = (val / maxVal) * chartH;
     const x = PADDING.left + i * (barW + gap);
@@ -386,7 +405,8 @@ function renderChart(
   });
 
   // Draw labels
-  ctx.fillStyle = 'var(--text-secondary, #888)';
+  const textCol = getCSSVar('--text-secondary', '#888');
+  ctx.fillStyle = textCol;
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'center';
   labels.forEach((lbl, i) => {
@@ -400,7 +420,7 @@ function renderChart(
     const y = PADDING.top + chartH + 16;
     ctx.fillStyle = '#a5b4fc';
     ctx.fillText(lbl, x, y);
-    ctx.fillStyle = 'var(--text-secondary, #888)';
+    ctx.fillStyle = textCol;
   });
 
   // Draw y-axis label (max value)
@@ -421,14 +441,14 @@ function renderBreakdown(
   const { paidTotal, unpaidTotal, paidPct, unpaidPct } = computePaidUnpaidBreakdown(filtered, userId);
 
   el.innerHTML = `
-    <h3 style="margin:0 0 12px;font-size:0.9rem;font-weight:600" data-i18n="reports.paid_vs_unpaid">${t('reports.paid_vs_unpaid')}</h3>
-    <div style="display:flex;flex-direction:column;gap:8px">
+    <h3>${t('reports.paid_vs_unpaid')}</h3>
+    <div style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;justify-content:space-between">
-        <span style="color:var(--success)" data-i18n="status.paid">${t('status.paid')}</span>
+        <span style="color:var(--success);font-weight:600" data-i18n="status.paid">${t('status.paid')}</span>
         <span>${escapeHtml(formatCurrency(paidTotal))} <strong>(${paidPct}%)</strong></span>
       </div>
       <div style="display:flex;justify-content:space-between">
-        <span style="color:var(--warning)" data-i18n="status.unpaid">${t('status.unpaid')} / ${t('status.overdue')}</span>
+        <span style="color:var(--warning);font-weight:600" data-i18n="status.unpaid">${t('status.unpaid')} / ${t('status.overdue')}</span>
         <span>${escapeHtml(formatCurrency(unpaidTotal))} <strong>(${unpaidPct}%)</strong></span>
       </div>
     </div>`;
@@ -454,12 +474,12 @@ function renderCountSummary(
   const draft = userFiltered.filter(inv => inv.status === 'draft').length;
 
   el.innerHTML = `
-    <h3 style="margin:0 0 12px;font-size:0.9rem;font-weight:600" data-i18n="reports.count_summary">${t('reports.count_summary')}</h3>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div style="display:flex;justify-content:space-between"><span data-i18n="reports.total_issued">${t('reports.total_issued')}</span><strong>${total}</strong></div>
-      <div style="display:flex;justify-content:space-between"><span data-i18n="status.paid">${t('status.paid')}</span><strong>${paid}</strong></div>
-      <div style="display:flex;justify-content:space-between"><span>${t('status.unpaid')} / ${t('status.overdue')}</span><strong>${unpaidOverdue}</strong></div>
-      <div style="display:flex;justify-content:space-between"><span data-i18n="status.draft">${t('status.draft')}</span><strong>${draft}</strong></div>
+    <h3>${t('reports.count_summary')}</h3>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;justify-content:space-between"><span data-i18n="reports.total_issued">${t('reports.total_issued')}</span><span style="font-weight:600">${total}</span></div>
+      <div style="display:flex;justify-content:space-between"><span data-i18n="status.paid">${t('status.paid')}</span><span style="color:var(--success);font-weight:600">${paid}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>${t('status.unpaid')} / ${t('status.overdue')}</span><span style="color:var(--warning);font-weight:600">${unpaidOverdue}</span></div>
+      <div style="display:flex;justify-content:space-between"><span data-i18n="status.draft">${t('status.draft')}</span><span style="font-weight:600">${draft}</span></div>
     </div>`;
 }
 
@@ -714,8 +734,8 @@ export function renderProfitLoss(el: Element, invoices: Invoice[], expenses: Exp
   const totalNetColor = totalNet < 0 ? 'color:var(--danger)' : totalNet > 0 ? 'color:var(--success)' : '';
 
   el.innerHTML = `
-    <div class="metric-card" style="padding:16px">
-      <h3 style="margin:0 0 12px;font-size:0.9rem;font-weight:600" data-i18n="reports.profit_loss_title" data-i18n-vars='{"year":"${year}"}'>${t('reports.profit_loss_title', { year: String(year) })}</h3>
+    <div class="report-card">
+      <h3 data-i18n="reports.profit_loss_title" data-i18n-vars='{"year":"${year}"}'>${t('reports.profit_loss_title', { year: String(year) })}</h3>
       <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
         <thead>
           <tr>

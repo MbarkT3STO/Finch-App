@@ -112,12 +112,22 @@ a:hover {
 /* ─── Sidebar ────────────────────────────────────────────────────────────────*/
 #sidebar {
   background: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-inline-end: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   position: relative;
   z-index: 10;
+}
+
+[data-theme="light"] #sidebar {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="dark"] #sidebar {
+  background: rgba(22, 22, 31, 0.8);
 }
 
 .sidebar-header {
@@ -147,6 +157,7 @@ a:hover {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: var(--text-inverse);
 }
 
 .logo-mark svg {
@@ -280,17 +291,18 @@ a:hover {
 }
 
 .user-avatar {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   background: var(--accent);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--highlight);
+  color: var(--text-inverse);
   font-weight: 700;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .user-name {
@@ -479,4 +491,66 @@ a:hover {
 .login-form-inner {
   width: 100%;
   max-width: 360px;
+}
+
+@media (max-width: 800px) {
+  .login-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .login-brand {
+    display: none;
+  }
+}
+
+/* ─── Responsiveness ─────────────────────────────────────────────────────────*/
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 68px;
+  }
+
+  .logo-text,
+  .nav-item span,
+  .nav-section-label,
+  .user-name,
+  .user-sub,
+  .sidebar-action-btn span {
+    display: none;
+  }
+
+  .logo-wrap,
+  .nav-item,
+  .sidebar-action-btn {
+    justify-content: center;
+    padding: 12px 0;
+  }
+
+  .sidebar-header {
+    padding: 0;
+    justify-content: center;
+  }
+
+  .win-controls {
+    display: none;
+  }
+
+  .user-chip {
+    padding: 12px 0;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  #app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  #sidebar {
+    display: none;
+    /* Mobile navigation would go here */
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr !important;
+  }
 }

@@ -51,11 +51,11 @@ async function loadDashboard(content: HTMLElement, navigate: (route: string) => 
       <h1 data-i18n="dashboard.title">${t('dashboard.title')}</h1>
     </div>
     <div style="padding:0 28px 28px">
-      <div class="metrics-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px">
-        ${renderMetricCard(formatCurrency(monthRevenue), "dashboard.this_month_revenue")}
-        ${renderMetricCard(formatCurrency(totalOutstanding), 'dashboard.total_outstanding')}
-        ${renderMetricCard(String(overdueCount), 'dashboard.overdue_invoices')}
-        ${renderMetricCard(String(draftCount), 'dashboard.draft_invoices')}
+      <div class="metrics-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:28px">
+        ${renderMetricCard(formatCurrency(monthRevenue), "dashboard.this_month_revenue", `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>`, 'revenue')}
+        ${renderMetricCard(formatCurrency(totalOutstanding), 'dashboard.total_outstanding', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`, 'outstanding')}
+        ${renderMetricCard(String(overdueCount), 'dashboard.overdue_invoices', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg>`, 'overdue')}
+        ${renderMetricCard(String(draftCount), 'dashboard.draft_invoices', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`, 'draft')}
       </div>
       <div class="section">
         <h2 style="margin:0 0 16px;font-size:1rem;font-weight:600" data-i18n="dashboard.recent_activity">${t('dashboard.recent_activity')}</h2>
@@ -68,11 +68,14 @@ async function loadDashboard(content: HTMLElement, navigate: (route: string) => 
   });
 }
 
-function renderMetricCard(value: string, labelKey: string): string {
+function renderMetricCard(value: string, labelKey: string, iconHtml: string, colorClass: string): string {
   return `
-    <div class="metric-card">
-      <div class="metric-value">${escapeHtml(value)}</div>
-      <div class="metric-label" data-i18n="${labelKey}">${t(labelKey)}</div>
+    <div class="metric-card metric-${colorClass}">
+      <div class="metric-icon">${iconHtml}</div>
+      <div class="metric-content">
+        <div class="metric-value">${escapeHtml(value)}</div>
+        <div class="metric-label" data-i18n="${labelKey}">${t(labelKey)}</div>
+      </div>
     </div>`;
 }
 
