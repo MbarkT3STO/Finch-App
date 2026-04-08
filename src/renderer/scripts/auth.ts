@@ -1,5 +1,6 @@
 import { showToast, setLoading, escapeHtml } from './ui-utils';
 import { validateRequired, validatePassword, validateEmail, passwordStrength } from './validators';
+import { t, updateDOM } from './i18n';
 
 // Auto-initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -22,11 +23,22 @@ export function renderAuth(container: HTMLElement): void {
         <p class="login-subtitle">Offline-first invoicing for freelancers and small businesses.</p>
         
         <div class="login-features">
-          ${['Create professional invoices', 'Manage clients & history', 'Export to PDF instantly', 'Works completely offline'].map(f => `
           <div class="login-feature-item">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-            <span>${escapeHtml(f)}</span>
-          </div>`).join('')}
+            <span data-i18n="auth.feat_1">Create professional invoices</span>
+          </div>
+          <div class="login-feature-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+            <span data-i18n="auth.feat_2">Manage clients & history</span>
+          </div>
+          <div class="login-feature-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+            <span data-i18n="auth.feat_3">Export to PDF instantly</span>
+          </div>
+          <div class="login-feature-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+            <span data-i18n="auth.feat_4">Works completely offline</span>
+          </div>
         </div>
       </div>
       <div class="login-bg-decoration"></div>
@@ -35,54 +47,54 @@ export function renderAuth(container: HTMLElement): void {
     <div class="login-form-panel">
       <!-- Window controls -->
       <div class="login-win-controls">
-        <button class="win-btn minimize" id="wc-minimize" title="Minimize"></button>
-        <button class="win-btn close"    id="wc-close"    title="Close"></button>
+        <button class="win-btn minimize" id="wc-minimize" title="Minimize" data-i18n-title="common.minimize"></button>
+        <button class="win-btn close"    id="wc-close"    title="Close" data-i18n-title="common.close"></button>
       </div>
 
       <div class="login-form-inner">
         <div class="auth-tabs">
-          <button class="auth-tab active" id="tab-login">Sign in</button>
-          <button class="auth-tab"        id="tab-register">Create account</button>
+          <button class="auth-tab active" id="tab-login" data-i18n="auth.sign_in">Sign in</button>
+          <button class="auth-tab"        id="tab-register" data-i18n="auth.create_account">Create account</button>
         </div>
 
         <!-- Login form -->
         <form id="login-form" class="auth-form">
           <div class="form-group">
-            <label class="form-label required">Username</label>
-            <input class="form-input" id="login-username" type="text" placeholder="Your username" autocomplete="username">
+            <label class="form-label required" data-i18n="auth.username">Username</label>
+            <input class="form-input" id="login-username" type="text" placeholder="Your username" data-i18n-placeholder="auth.username_pl" autocomplete="username">
             <span class="form-error"></span>
           </div>
           <div class="form-group">
-            <label class="form-label required">Password</label>
-            <input class="form-input" id="login-password" type="password" placeholder="Your password" autocomplete="current-password">
+            <label class="form-label required" data-i18n="auth.password">Password</label>
+            <input class="form-input" id="login-password" type="password" placeholder="Your password" data-i18n-placeholder="auth.password_pl" autocomplete="current-password">
             <span class="form-error"></span>
           </div>
           <button type="submit" class="btn btn-primary btn-lg" id="login-btn" style="width:100%;margin-top:8px">
-            <span class="btn-label">Sign in</span>
+            <span class="btn-label" data-i18n="auth.sign_in">Sign in</span>
           </button>
         </form>
 
         <!-- Register form (hidden) -->
         <form id="register-form" class="auth-form" style="display:none">
           <div class="form-group">
-            <label class="form-label required">Username</label>
-            <input class="form-input" id="reg-username" type="text" placeholder="Choose a username" autocomplete="username">
+            <label class="form-label required" data-i18n="auth.username">Username</label>
+            <input class="form-input" id="reg-username" type="text" placeholder="Choose a username" data-i18n-placeholder="auth.reg_username_pl" autocomplete="username">
             <span class="form-error"></span>
           </div>
           <div class="form-group">
-            <label class="form-label">Email <span class="label-optional">(optional)</span></label>
+            <label class="form-label"><span data-i18n="auth.email">Email</span> <span class="label-optional" data-i18n="auth.optional">(optional)</span></label>
             <input class="form-input" id="reg-email" type="email" placeholder="you@example.com" autocomplete="email">
             <span class="form-error"></span>
           </div>
           <div class="form-group">
-            <label class="form-label required">Password</label>
-            <input class="form-input" id="reg-password" type="password" placeholder="Create a password" autocomplete="new-password">
+            <label class="form-label required" data-i18n="auth.password">Password</label>
+            <input class="form-input" id="reg-password" type="password" placeholder="Create a password" data-i18n-placeholder="auth.reg_password_pl" autocomplete="new-password">
             <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
-            <span class="form-hint" id="strength-label">Choose a strong password</span>
+            <span class="form-hint" id="strength-label" data-i18n="auth.strong_pwd">Choose a strong password</span>
             <span class="form-error"></span>
           </div>
           <button type="submit" class="btn btn-primary btn-lg" id="register-btn" style="width:100%;margin-top:8px">
-            <span class="btn-label">Create account</span>
+            <span class="btn-label" data-i18n="auth.create_account">Create account</span>
           </button>
         </form>
       </div>
@@ -90,6 +102,7 @@ export function renderAuth(container: HTMLElement): void {
   </div>`;
 
   initAuthHandlers();
+  updateDOM();
 }
 
 function initAuthHandlers(): void {
@@ -144,7 +157,7 @@ function initAuthHandlers(): void {
     setLoading(btn, false);
 
     if (!result.success) {
-      showToast(result.error ?? 'Login failed', 'error');
+      showToast(result.error ?? (t('auth.login_failed') || 'Login failed'), 'error');
     }
     // On success main process switches windows automatically
   });
@@ -169,7 +182,7 @@ function initAuthHandlers(): void {
     setLoading(btn, false);
 
     if (!result.success) {
-      showToast(result.error ?? 'Registration failed', 'error');
+      showToast(result.error ?? (t('auth.registration_failed') || 'Registration failed'), 'error');
     }
     // On success main process auto-logs in and switches windows
   });
