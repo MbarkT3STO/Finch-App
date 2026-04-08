@@ -73,16 +73,28 @@ async function loadReports(content: HTMLElement): Promise<void> {
   let editingExpenseId: string | null = null;
 
   content.innerHTML = `
-    <div class="page-header">
+    <div class="page-header" style="display: flex; align-items: center; justify-content: space-between;">
       <h1 data-i18n="reports.title">${t('reports.title')}</h1>
+      
+      <div class="custom-select-wrap" id="export-tax-wrap" style="align-self: flex-start;">
+        <button id="export-tax-btn" class="btn btn-secondary btn-sm" data-i18n="reports.export_tax_report">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          <span class="trigger-label">${t('reports.export_tax_report') || 'Export'}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="custom-select-menu" id="export-tax-menu" style="right:0;left:auto;min-width:160px;top:calc(100% + 4px);">
+          <div id="export-csv-btn" class="custom-select-option" data-i18n="reports.export_csv">${t('reports.export_csv')}</div>
+          <div id="export-pdf-btn" class="custom-select-option" data-i18n="reports.export_pdf">${t('reports.export_pdf')}</div>
+        </div>
+      </div>
     </div>
     <div style="padding:0 28px 28px">
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
         <label style="font-weight:500" data-i18n="reports.year_label">${t('reports.year_label')}</label>
         <div id="year-select-container" style="width:140px"></div>
         <div style="display:flex;gap:4px">
-          <button id="btn-monthly" class="btn btn-primary" style="min-width:90px" data-i18n="reports.monthly_btn">${t('reports.monthly_btn')}</button>
-          <button id="btn-yearly" class="btn btn-secondary" style="min-width:90px" data-i18n="reports.yearly_btn">${t('reports.yearly_btn')}</button>
+          <button id="btn-monthly" class="btn btn-primary btn-sm" style="min-width:90px" data-i18n="reports.monthly_btn">${t('reports.monthly_btn')}</button>
+          <button id="btn-yearly" class="btn btn-secondary btn-sm" style="min-width:90px" data-i18n="reports.yearly_btn">${t('reports.yearly_btn')}</button>
         </div>
       </div>
 
@@ -137,16 +149,61 @@ async function loadReports(content: HTMLElement): Promise<void> {
 
   btnMonthly.addEventListener('click', () => {
     viewMode = 'monthly';
-    btnMonthly.className = 'btn btn-primary';
-    btnYearly.className = 'btn btn-secondary';
+    btnMonthly.className = 'btn btn-primary btn-sm';
+    btnYearly.className = 'btn btn-secondary btn-sm';
     update();
   });
 
   btnYearly.addEventListener('click', () => {
     viewMode = 'yearly';
-    btnMonthly.className = 'btn btn-secondary';
-    btnYearly.className = 'btn btn-primary';
+    btnMonthly.className = 'btn btn-secondary btn-sm';
+    btnYearly.className = 'btn btn-primary btn-sm';
     update();
+  });
+
+  // Bind Export Header Actions
+  const exportWrap = content.querySelector<HTMLElement>('#export-tax-wrap')!;
+  const exportBtn  = content.querySelector<HTMLButtonElement>('#export-tax-btn')!;
+
+  exportBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = exportWrap.classList.contains('open');
+    document.querySelectorAll('.custom-select-wrap.open').forEach(el => el.classList.remove('open'));
+    if (!isOpen) exportWrap.classList.add('open');
+  });
+
+  document.addEventListener('click', () => { exportWrap.classList.remove('open'); });
+
+  content.querySelector<HTMLButtonElement>('#export-csv-btn')!.addEventListener('click', async () => {
+    exportWrap.classList.remove('open');
+    const summary = buildTaxSummary(userInvoices, selectedYear);
+    const headers = [t('reports.month_col'), t('reports.total_invoiced_col'), t('reports.tax_collected_col'), t('reports.net_amount_col')];
+    const dataRows: string[][] = summary.rows.map(row => [
+      row.label,
+      formatCurrency(row.totalInvoiced),
+      formatCurrency(row.taxTotal),
+      formatCurrency(row.net),
+    ]);
+    dataRows.push([
+      t('reports.total_row'),
+      formatCurrency(summary.annualTotalInvoiced),
+      formatCurrency(summary.annualTaxTotal),
+      formatCurrency(summary.annualNet),
+    ]);
+
+    const csv = toCSV(headers, dataRows);
+    const defaultName = `tax-report-${selectedYear}.csv`;
+    const result = await window.finchAPI.report.exportCsv({ csv, defaultName });
+    handleExportResult(result);
+  });
+
+  content.querySelector<HTMLButtonElement>('#export-pdf-btn')!.addEventListener('click', async () => {
+    exportWrap.classList.remove('open');
+    const summary = buildTaxSummary(userInvoices, selectedYear);
+    const html = buildTaxReportHtml(summary);
+    const defaultName = `tax-report-${selectedYear}.pdf`;
+    const result = await window.finchAPI.report.exportPdf({ html, defaultName });
+    handleExportResult(result);
   });
 
   // ─── Expense section event delegation ────────────────────────────────────
@@ -483,8 +540,6 @@ function renderCountSummary(
     </div>`;
 }
 
-// ─── Tax Summary section (with Export Tax Report dropdown) ───────────────────
-
 export function renderTaxSummary(el: Element, invoices: Invoice[], year: number): void {
   const rows = taxSummaryByMonth(invoices, year);
   const MONTH_LABELS = getMonthLabels();
@@ -511,16 +566,6 @@ export function renderTaxSummary(el: Element, invoices: Invoice[], year: number)
     <div class="metric-card" style="padding:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <h3 style="margin:0;font-size:0.9rem;font-weight:600" data-i18n="reports.tax_summary_title" data-i18n-vars='{"year":"${year}"}'>${t('reports.tax_summary_title', { year: String(year) })}</h3>
-        <div class="custom-select-wrap" id="export-tax-wrap">
-          <button id="export-tax-btn" class="custom-select-trigger" style="font-size:0.8rem;height:32px;padding:0 12px" data-i18n="reports.export_tax_report">
-            <span class="trigger-label">${t('reports.export_tax_report')}</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-          <div class="custom-select-menu" id="export-tax-menu" style="right:0;left:auto;min-width:160px">
-            <div id="export-csv-btn" class="custom-select-option" data-i18n="reports.export_csv">${t('reports.export_csv')}</div>
-            <div id="export-pdf-btn" class="custom-select-option" data-i18n="reports.export_pdf">${t('reports.export_pdf')}</div>
-          </div>
-        </div>
       </div>
       <table class="tax-table" style="width:100%;border-collapse:collapse;font-size:0.85rem">
         <thead>
@@ -544,54 +589,6 @@ export function renderTaxSummary(el: Element, invoices: Invoice[], year: number)
         </tfoot>
       </table>
     </div>`;
-
-  // Toggle dropdown
-  const exportWrap = el.querySelector<HTMLElement>('#export-tax-wrap')!;
-  const exportBtn  = el.querySelector<HTMLButtonElement>('#export-tax-btn')!;
-
-  exportBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isOpen = exportWrap.classList.contains('open');
-    // Close others
-    document.querySelectorAll('.custom-select-wrap.open').forEach(el => el.classList.remove('open'));
-    if (!isOpen) exportWrap.classList.add('open');
-  });
-
-  document.addEventListener('click', () => { exportWrap.classList.remove('open'); });
-
-  // ─── CSV export ───────────────────────────────────────────────────────────
-  el.querySelector<HTMLButtonElement>('#export-csv-btn')!.addEventListener('click', async () => {
-    exportWrap.classList.remove('open');
-    const summary = buildTaxSummary(invoices, year);
-    const headers = [t('reports.month_col'), t('reports.total_invoiced_col'), t('reports.tax_collected_col'), t('reports.net_amount_col')];
-    const dataRows: string[][] = summary.rows.map(row => [
-      row.label,
-      formatCurrency(row.totalInvoiced),
-      formatCurrency(row.taxTotal),
-      formatCurrency(row.net),
-    ]);
-    dataRows.push([
-      t('reports.total_row'),
-      formatCurrency(summary.annualTotalInvoiced),
-      formatCurrency(summary.annualTaxTotal),
-      formatCurrency(summary.annualNet),
-    ]);
-
-    const csv = toCSV(headers, dataRows);
-    const defaultName = `tax-report-${year}.csv`;
-    const result = await window.finchAPI.report.exportCsv({ csv, defaultName });
-    handleExportResult(result);
-  });
-
-  // ─── PDF export ───────────────────────────────────────────────────────────
-  el.querySelector<HTMLButtonElement>('#export-pdf-btn')!.addEventListener('click', async () => {
-    exportWrap.classList.remove('open');
-    const summary = buildTaxSummary(invoices, year);
-    const html = buildTaxReportHtml(summary);
-    const defaultName = `tax-report-${year}.pdf`;
-    const result = await window.finchAPI.report.exportPdf({ html, defaultName });
-    handleExportResult(result);
-  });
 }
 
 // ─── Export result handler (toasts + Show in Folder) ─────────────────────────

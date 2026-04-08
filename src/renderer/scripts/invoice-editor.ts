@@ -53,6 +53,10 @@ function buildEditorShell(invoiceId: string | null): string {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/></svg>
         </button>
         <button class="btn btn-secondary btn-sm" id="save-draft-btn"><span class="btn-label" data-i18n="invoices.save_draft">${t('invoices.save_draft')}</span></button>
+        <button class="btn btn-secondary btn-sm" id="toggle-preview-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          <span class="btn-label" data-i18n="invoices.show_preview" id="toggle-preview-label">Show Preview</span>
+        </button>
         <button class="btn btn-highlight" id="export-pdf-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           <span class="btn-label" data-i18n="invoices.export_pdf">${t('invoices.export_pdf')}</span>
@@ -60,7 +64,7 @@ function buildEditorShell(invoiceId: string | null): string {
       </div>
     </div>
 
-    <div class="editor-shell" style="flex:1;overflow:hidden">
+    <div class="editor-shell preview-hidden" id="editor-shell-wrap" style="flex:1;overflow:hidden">
       <!-- Left: Form -->
       <div class="editor-form-panel" id="editor-form">
         <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:20px;color:var(--text-tertiary)">
@@ -160,6 +164,21 @@ async function setupEditorEvents(invoiceId: string | null): Promise<void> {
 
   // Save
   document.getElementById('save-draft-btn')?.addEventListener('click', () => saveInvoice());
+
+  let isPreviewVisible = false;
+  document.getElementById('toggle-preview-btn')?.addEventListener('click', () => {
+    isPreviewVisible = !isPreviewVisible;
+    const shellWrap = document.getElementById('editor-shell-wrap');
+    if (shellWrap) {
+      if (isPreviewVisible) {
+        shellWrap.classList.remove('preview-hidden');
+        document.getElementById('toggle-preview-label')!.textContent = 'Hide Preview';
+      } else {
+        shellWrap.classList.add('preview-hidden');
+        document.getElementById('toggle-preview-label')!.textContent = 'Show Preview';
+      }
+    }
+  });
 
   // PDF
   document.getElementById('export-pdf-btn')?.addEventListener('click', async () => {
