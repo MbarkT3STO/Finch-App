@@ -1,5 +1,5 @@
 import { AppSettings } from '../../shared/types';
-import { showToast, openModal, closeModal, confirm, escapeHtml, createCustomSelect, setLoading } from './ui-utils';
+import { showToast, openModal, closeModal, confirm, escapeHtml, createCustomSelect, setLoading, applyTheme } from './ui-utils';
 import { validatePassword } from './validators';
 import { t, setLanguage } from './i18n';
 
@@ -278,16 +278,6 @@ function renderSettings(s: AppSettings): void {
 
 function esc(s: string) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function applyTheme(theme: 'light' | 'dark' | 'system'): void {
-  const root = document.documentElement;
-  if (theme === 'system') {
-    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.setAttribute('data-theme', dark ? 'dark' : 'light');
-  } else {
-    root.setAttribute('data-theme', theme);
-  }
 }
 
 async function saveSettings(): Promise<void> {

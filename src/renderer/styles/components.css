@@ -1516,3 +1516,40 @@ tr:hover .row-actions {
     transform: translateY(0);
   }
 }
+
+/* ─── Extreme Small Viewport Handling ────────────────────────────────────────*/
+@media (max-width: 480px) {
+
+  .card,
+  .modal-body {
+    padding: 16px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-form-panel {
+    padding: 16px;
+  }
+
+  .tax-table,
+  .data-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  .metric-card {
+    padding: 12px;
+  }
+
+  .report-card {
+    padding: 16px;
+  }
+
+  .modal {
+    width: 95%;
+  }
+}

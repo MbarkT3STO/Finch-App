@@ -1,9 +1,15 @@
-import { showToast, setLoading, escapeHtml } from './ui-utils';
+import { showToast, setLoading, escapeHtml, applyTheme } from './ui-utils';
 import { validateRequired, validatePassword, validateEmail, passwordStrength } from './validators';
-import { t, updateDOM } from './i18n';
+import { t, setLanguage, updateDOM } from './i18n';
 
 // Auto-initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const settingsR = await window.finchAPI.settings.get();
+  if (settingsR.success && settingsR.data) {
+    applyTheme(settingsR.data.theme);
+    setLanguage(settingsR.data.language || 'en');
+  }
+
   const root = document.getElementById('auth-root');
   if (root) renderAuth(root);
 });

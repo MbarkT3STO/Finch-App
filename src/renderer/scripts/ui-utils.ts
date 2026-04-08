@@ -7,6 +7,16 @@ const icons: Record<ToastType, string> = {
   info:    `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>`,
 };
 
+export function applyTheme(theme: string): void {
+  const root = document.documentElement;
+  if (theme === 'system') {
+    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.setAttribute('data-theme', dark ? 'dark' : 'light');
+  } else {
+    root.setAttribute('data-theme', theme);
+  }
+}
+
 export function showToast(message: string, type: ToastType = 'info', duration = 3000): void {
   let container = document.getElementById('toast-container');
   if (!container) {

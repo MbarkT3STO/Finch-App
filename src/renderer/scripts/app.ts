@@ -4,7 +4,7 @@ import { initInvoiceEditor } from './invoice-editor';
 import { initClientManager } from './client-manager';
 import { initReports } from './reports';
 import { initSettings } from './settings';
-import { showToast } from './ui-utils';
+import { showToast, applyTheme } from './ui-utils';
 import { setLanguage } from './i18n';
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -114,17 +114,6 @@ function updateNavHighlight(route: string): void {
       (r === '#/invoices' && route.startsWith('#/invoice'));
     item.classList.toggle('active', active);
   });
-}
-
-// ─── Theme ────────────────────────────────────────────────────────────────────
-function applyTheme(theme: string): void {
-  const root = document.documentElement;
-  if (theme === 'system') {
-    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.setAttribute('data-theme', dark ? 'dark' : 'light');
-  } else {
-    root.setAttribute('data-theme', theme);
-  }
 }
 
 // ─── Start ────────────────────────────────────────────────────────────────────
